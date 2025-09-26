@@ -3,7 +3,7 @@
   "builds": [
     {
       "src": "api/**/*.php",
-      "use": "@vercel/community-php"
+      "use": "@devsense/vercel-php"
     },
     {
       "src": "package.json",
