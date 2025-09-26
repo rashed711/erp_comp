@@ -82,7 +82,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                         <div className="text-right space-y-2">
                             <p><strong>فشل الاتصال بالخادم.</strong> يتم الآن استخدام بيانات تجريبية ولن تتمكن من الحفظ.</p>
                             <p className="text-sm mt-2">الملفات التي فشل تحميلها: <strong>{fetchErrors.join(', ')}</strong></p>
-                             <p className="text-sm font-semibold mt-3">لإصلاح المشكلة، افتح أدوات المطور (F12) -> Network Tab وتحقق من سبب فشل الطلبات.</p>
+                             <p className="text-sm font-semibold mt-3">لإصلاح المشكلة، افتح أدوات المطور (F12) {'->'} Network Tab وتحقق من سبب فشل الطلبات.</p>
                         </div>
                     );
                     setError({
