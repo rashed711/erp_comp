@@ -3,7 +3,7 @@
   "builds": [
     {
       "src": "api/**/*.php",
-      "use": "vercel-php@0.7.0"
+      "use": "@ju-cli/php"
     },
     {
       "src": "package.json",
