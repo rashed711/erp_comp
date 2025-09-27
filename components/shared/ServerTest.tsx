@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../../services/api';
 import * as Icons from '../icons/ModuleIcons';
-// FIX: Imported ClockIcon from GenericIcons as it's not in ModuleIcons
 import { ClockIcon } from '../icons/GenericIcons';
 
 type TestStatus = 'idle' | 'loading' | 'success' | 'error';
@@ -17,7 +16,6 @@ interface StatusInfo {
 const statusStyles: Record<TestStatus, StatusInfo> = {
     idle: { border: 'border-gray-400', bg: 'bg-gray-50', text: 'text-gray-600', label: 'في الانتظار', icon: <ClockIcon className="w-5 h-5 text-gray-500" /> },
     loading: { border: 'border-blue-400', bg: 'bg-blue-50', text: 'text-blue-600', label: 'جاري الاختبار...', icon: <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> },
-    // FIX: Used Icons.ShieldCheckIcon for consistency
     success: { border: 'border-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'نجح', icon: <Icons.ShieldCheckIcon className="w-5 h-5 text-emerald-500" /> },
     error: { border: 'border-red-500', bg: 'bg-red-50', text: 'text-red-700', label: 'فشل', icon: <Icons.XIcon className="w-5 h-5 text-red-500" /> },
 };
@@ -140,7 +138,6 @@ const ServerTest: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                        {testResults.table_status.map((table: any) => (
                                            <div key={table.table_name} className={`flex items-center gap-2 p-2 rounded-md ${table.exists ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                                               {/* FIX: Used Icons.ShieldCheckIcon for consistency */}
                                                {table.exists ? <Icons.ShieldCheckIcon className="w-4 h-4" /> : <Icons.XIcon className="w-4 h-4" />}
                                                <span className="font-mono text-xs">{table.table_name}</span>
                                            </div>

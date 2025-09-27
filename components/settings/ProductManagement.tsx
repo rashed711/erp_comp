@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
-import { formatCurrencySAR } from '../../utils/formatters';
+import { formatCurrencySAR, extractTime } from '../../utils/formatters';
 import AddProductModal from './AddProductModal';
 import ConfirmationModal from '../shared/ConfirmationModal';
-import { getProducts as getMockProducts } from '../../services/mockApi';
 import { API_BASE_URL } from '../../services/api';
 
 
@@ -12,22 +11,20 @@ const ProductManagement: React.FC = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<React.ReactNode | null>(null);
-    const [isUsingMockData, setIsUsingMockData] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+    const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
     const [productToEdit, setProductToEdit] = useState<Product | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
 
-    const ITEMS_PER_PAGE = 10;
+    const ITEMS_PER_PAGE = 5;
 
     const fetchProducts = async () => {
         setIsLoading(true);
         setError(null);
-        setIsUsingMockData(false);
         try {
             const response = await fetch(`${API_BASE_URL}products.php`, {
                 cache: 'no-cache',
@@ -41,63 +38,43 @@ const ProductManagement: React.FC = () => {
             }
     
             if (!response.ok) {
-                throw new Error(`فشل الجلب. استجاب الخادم بحالة ${response.status}.`);
+                const errorBody = text ? `: ${text}` : '';
+                throw new Error(`فشل الجلب. استجاب الخادم بحالة ${response.status}${errorBody}`);
             }
             
-            const data = JSON.parse(text);
+            const rawData = JSON.parse(text);
 
-            if (data.error) {
-                throw new Error(data.error);
+            if (rawData.error) {
+                 const errorDetails = rawData.details ? ` - الرسالة: ${rawData.details.message} في ملف ${rawData.details.file} السطر ${rawData.details.line}` : '';
+                 throw new Error(rawData.error + errorDetails);
             }
-            setProducts(data.sort((a: Product, b: Product) => a.name.localeCompare(b.name, 'ar')));
+
+            const formattedData: Product[] = rawData.map((p: any) => ({
+                id: String(p.id),
+                name: p.name,
+                description: p.description,
+                category: p.category,
+                unit: p.unit,
+                averagePurchasePrice: parseFloat(p.average_purchase_price),
+                averageSalePrice: parseFloat(p.average_sale_price),
+                stockQuantity: parseInt(p.stock_quantity, 10),
+                imageUrl: p.image_url,
+                createdAt: p.created_at,
+            }));
+
+            setProducts(formattedData);
         } catch (err: any) {
             console.error("Fetch Error:", err);
             
             let detailedError: React.ReactNode;
-            
-            if (err.message === 'HOSTING_SECURITY_CHALLENGE') {
-                 detailedError = (
-                    <div>
-                        <p className="font-bold">فشل الاتصال بسبب نظام أمان الاستضافة. يتم الآن عرض بيانات تجريبية.</p>
-                        <p className="mt-2"><strong>لحل المشكلة نهائياً، اذهب إلى صفحة "تشخيص الاتصال"</strong> واتبع التعليمات.</p>
-                    </div>
-                );
+            if (err.message.includes('HOSTING_SECURITY_CHALLENGE')) {
+                 detailedError = "فشل الاتصال بسبب نظام أمان الاستضافة. يرجى مراجعة صفحة 'تشخيص الاتصال' للحل.";
             } else if (err instanceof SyntaxError) {
-                  detailedError = (
-                    <div>
-                        <p className="font-bold">فشل تحليل استجابة الخادم (Invalid JSON). يتم الآن عرض بيانات تجريبية.</p>
-                        <p className="mt-2">هذا يعني غالبًا وجود خطأ برمجي (Fatal Error) في ملف PHP.</p>
-                        <p className="mt-3 font-semibold">اذهب إلى صفحة "تشخيص الاتصال" لتحديد المشكلة بدقة.</p>
-                    </div>
-                );
+                  detailedError = "فشل تحليل استجابة الخادم (JSON). هذا يعني وجود خطأ برمجي (Fatal Error) في ملف PHP. يرجى مراجعة صفحة 'تشخيص الاتصال'.";
             } else {
-                detailedError = (
-                    <div>
-                        <p className="font-bold text-lg mb-2">فشل الاتصال بالخادم (خطأ في الشبكة)</p>
-                        <p className="mb-3">حاول متصفحك طلب البيانات من الخادم، لكن الخادم رفض الاتصال. هذه المشكلة <strong>ليست خطأً في برمجة التطبيق</strong>، بل هي مشكلة في إعدادات الخادم.</p>
-                        <p className="mb-3">يتم الآن عرض <strong>بيانات تجريبية للقراءة فقط</strong> كحل بديل مؤقت.</p>
-                        
-                        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                            <p className="font-semibold text-red-800">السبب الأكثر شيوعاً: مشكلة CORS</p>
-                            <p className="text-sm mt-1">يمنع الخادم الخاص بك هذا الموقع من الوصول إلى بياناته كإجراء أمني افتراضي.</p>
-                        </div>
-            
-                        <p className="mt-4 font-semibold text-gray-800">الحل المضمون (لإرساله للدعم الفني):</p>
-                        <p className="text-sm mt-1">تواصل مع الدعم الفني لشركة الاستضافة وأرسل لهم هذه الرسالة (يفضل باللغة الإنجليزية):</p>
-                        <pre className="mt-2 p-3 bg-gray-100 text-gray-800 rounded-md text-xs text-left leading-relaxed" dir="ltr">
-                            {`Subject: Urgent - CORS Policy Blocking API Access\n\nHello Support Team,\n\nMy frontend application, hosted at [Your Website URL], cannot access my PHP API located in the /api/ directory on my server.\n\nThe browser's console shows a "Cross-Origin Resource Sharing (CORS)" error, which means the server is blocking the requests.\n\nPlease add the following HTTP header to the configuration for the /api/ directory to resolve this issue:\n\nAccess-Control-Allow-Origin: *\n\nThis will allow my application to function correctly. Thank you.`}
-                        </pre>
-                        <p className="text-xs mt-1 text-gray-500">ملاحظة: استبدل [Your Website URL] برابط موقعك الفعلي.</p>
-            
-                        <p className="mt-4 font-semibold text-gray-800">لتشخيص إضافي:</p>
-                        <p className="mt-1">اذهب إلى صفحة <strong className="text-emerald-600">"تشخيص الاتصال"</strong> من القائمة الجانبية لتحديد المشكلة بدقة.</p>
-                    </div>
-                );
+                 detailedError = err.message;
             }
-            
             setError(detailedError);
-            setProducts(getMockProducts().sort((a, b) => a.name.localeCompare(b.name, 'ar')));
-            setIsUsingMockData(true);
         } finally {
             setIsLoading(false);
         }
@@ -115,8 +92,7 @@ const ProductManagement: React.FC = () => {
         return products.filter(product =>
             product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (product.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+            product.category.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [searchTerm, products]);
 
@@ -127,36 +103,45 @@ const ProductManagement: React.FC = () => {
 
     const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
 
-    const handleSaveProduct = async (productData: Omit<Product, 'id' | 'createdAt' | 'sku' | 'stockQuantity'>, id: string | null) => {
+    const handleSaveProduct = async (productData: Omit<Product, 'id' | 'createdAt' | 'stockQuantity' >, id: string | null) => {
         setIsSaving(true);
         setSaveError(null);
         try {
             const isEdit = !!id;
             const url = `${API_BASE_URL}products.php`;
             const method = isEdit ? 'PUT' : 'POST';
-            const body = isEdit ? JSON.stringify({ ...productData, id }) : JSON.stringify(productData);
             
+            const payload = {
+                ...productData,
+                id: isEdit ? id : undefined
+            };
+
             const response = await fetch(url, { 
                 method, 
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, 
-                body, 
+                body: JSON.stringify(payload), 
                 cache: 'no-cache' 
             });
             
+            const responseText = await response.text();
+
             if (!response.ok) {
-                 const errorText = await response.text();
-                 throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${errorText}`);
+                 throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${responseText}`);
             }
 
-            const result = await response.json();
-            if (result.error) {
-                throw new Error(result.error);
+            try {
+                const result = JSON.parse(responseText);
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                await fetchProducts(); // Refetch all products
+                handleCloseAddEditModal();
+            } catch (jsonError) {
+                 throw new Error(`فشل تحليل استجابة الخادم كـ JSON. قد يكون هناك خطأ في PHP. الاستجابة: ${responseText}`);
             }
 
-            await fetchProducts(); // Refetch all products
-            handleCloseModal();
         } catch (err) {
-            const errorMessage = err instanceof Error ? `فشل الطلب. تحقق من اتصالك ومن تبويب "Network" في أدوات المطور. التفاصيل: ${err.message}` : 'حدث خطأ غير متوقع.';
+            const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
             setSaveError(errorMessage);
         } finally {
             setIsSaving(false);
@@ -165,18 +150,19 @@ const ProductManagement: React.FC = () => {
 
     const handleOpenAddModal = () => {
         setProductToEdit(null);
-        setIsModalOpen(true);
+        setSaveError(null);
+        setIsAddEditModalOpen(true);
     };
 
     const handleOpenEditModal = (product: Product) => {
         setProductToEdit(product);
-        setIsModalOpen(true);
+        setSaveError(null);
+        setIsAddEditModalOpen(true);
     };
 
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
+    const handleCloseAddEditModal = () => {
+        setIsAddEditModalOpen(false);
         setProductToEdit(null);
-        setSaveError(null);
     };
     
     const handleOpenDeleteModal = (product: Product) => {
@@ -199,20 +185,25 @@ const ProductManagement: React.FC = () => {
                     cache: 'no-cache'
                 });
 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${errorText}`);
-                }
+                const responseText = await response.text();
 
-                const result = await response.json();
-                if (result.error) {
-                    throw new Error(result.error);
+                if (!response.ok) {
+                    throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${responseText}`);
                 }
-                setProducts(prev => prev.filter(p => p.id !== productToDelete.id));
-                handleCloseDeleteModal();
+                
+                try {
+                    const result = JSON.parse(responseText);
+                    if (result.error) {
+                        throw new Error(result.error);
+                    }
+                    setProducts(prev => prev.filter(p => p.id !== productToDelete.id));
+                } catch (jsonError) {
+                    throw new Error(`فشل تحليل استجابة الخادم كـ JSON. قد يكون هناك خطأ في PHP. الاستجابة: ${responseText}`);
+                }
             } catch (err) {
-                const errorMessage = err instanceof Error ? `فشل الطلب. تحقق من اتصالك ومن تبويب "Network" في أدوات المطور. التفاصيل: ${err.message}` : 'حدث خطأ غير متوقع.';
+                const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
                 alert(`خطأ في حذف المنتج: ${errorMessage}`);
+            } finally {
                 handleCloseDeleteModal();
             }
         }
@@ -243,8 +234,7 @@ const ProductManagement: React.FC = () => {
                         </div>
                         <button 
                             onClick={handleOpenAddModal}
-                            disabled={isUsingMockData}
-                            className="flex-shrink-0 flex items-center bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-px text-sm disabled:bg-gray-400 disabled:cursor-not-allowed">
+                            className="flex-shrink-0 flex items-center bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-px text-sm">
                             <Icons.PlusIcon className="w-5 h-5 ml-2" />
                             <span>إضافة منتج</span>
                         </button>
@@ -264,16 +254,15 @@ const ProductManagement: React.FC = () => {
                                 <th className="p-3 font-semibold text-right">الصورة</th>
                                 <th className="p-3 font-semibold text-right">اسم المنتج</th>
                                 <th className="p-3 font-semibold text-right hidden lg:table-cell">الوصف</th>
-                                <th className="p-3 font-semibold text-right hidden md:table-cell">التصنيف</th>
-                                <th className="p-3 font-semibold text-right hidden sm:table-cell">الوحدة</th>
-                                <th className="p-3 font-semibold text-right">السعر</th>
+                                <th className="p-3 font-semibold text-right">م. سعر الشراء</th>
+                                <th className="p-3 font-semibold text-right">م. سعر البيع</th>
                                 <th className="p-3 font-semibold text-center">إجراءات</th>
                             </tr>
                         </thead>
                         <tbody className="text-gray-700">
                              {isLoading ? (
                                 <tr>
-                                    <td colSpan={7} className="text-center py-8 text-gray-500">
+                                    <td colSpan={6} className="text-center py-8 text-gray-500">
                                         <div className="flex justify-center items-center">
                                             <svg className="animate-spin h-5 w-5 text-emerald-500 ml-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -286,8 +275,8 @@ const ProductManagement: React.FC = () => {
                             ) : paginatedProducts.length > 0 ? (
                                 paginatedProducts.map((product) => (
                                     <tr key={product.id} className="border-b hover:bg-gray-50 transition-colors">
-                                        <td className="p-3">
-                                            <img src={product.imageUrl} alt={product.name} className="w-12 h-12 rounded-md object-cover" />
+                                        <td className="p-3 align-middle">
+                                            <img src={product.imageUrl || `https://picsum.photos/seed/${product.name.replace(/\s/g, '')}/100/100`} alt={product.name} className="w-12 h-12 rounded-md object-cover" />
                                         </td>
                                         <td className="p-3 font-medium text-gray-800 align-middle">
                                             {product.name}
@@ -295,21 +284,21 @@ const ProductManagement: React.FC = () => {
                                         <td className="p-3 hidden lg:table-cell align-middle max-w-sm">
                                             <p className="truncate text-gray-600">{product.description || '-'}</p>
                                         </td>
-                                        <td className="p-3 hidden md:table-cell align-middle">{product.category}</td>
-                                        <td className="p-3 hidden sm:table-cell align-middle">{product.unit || '-'}</td>
-                                        <td className="p-3 align-middle">{formatCurrencySAR(product.price)}</td>
+                                        <td className="p-3 align-middle">{formatCurrencySAR(product.averagePurchasePrice)}</td>
+                                        <td className="p-3 align-middle">{formatCurrencySAR(product.averageSalePrice)}</td>
+
                                         <td className="p-3 align-middle">
                                             <div className="flex items-center justify-center space-x-2 space-x-reverse">
-                                                <button onClick={() => handleOpenEditModal(product)} disabled={isUsingMockData} className="p-2 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-100 transition-colors disabled:text-gray-300 disabled:cursor-not-allowed"><Icons.PencilIcon className="w-5 h-5" /></button>
-                                                <button onClick={() => handleOpenDeleteModal(product)} disabled={isUsingMockData} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 transition-colors disabled:text-gray-300 disabled:cursor-not-allowed"><Icons.TrashIcon className="w-5 h-5" /></button>
+                                                <button onClick={() => handleOpenEditModal(product)} className="p-2 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-100 transition-colors"><Icons.PencilIcon className="w-5 h-5" /></button>
+                                                <button onClick={() => handleOpenDeleteModal(product)} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 transition-colors"><Icons.TrashIcon className="w-5 h-5" /></button>
                                             </div>
                                         </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={7} className="text-center py-8 text-gray-500">
-                                        لم يتم العثور على منتجات مطابقة.
+                                    <td colSpan={6} className="text-center py-8 text-gray-500">
+                                        {error ? 'لا يمكن عرض البيانات حالياً.' : 'لا يوجد منتجات في قاعدة البيانات. يمكنك إضافة منتج جديد.'}
                                     </td>
                                 </tr>
                             )}
@@ -339,8 +328,8 @@ const ProductManagement: React.FC = () => {
                 )}
             </div>
             <AddProductModal
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
+                isOpen={isAddEditModalOpen}
+                onClose={handleCloseAddEditModal}
                 onSave={handleSaveProduct}
                 productToEdit={productToEdit}
                 isSaving={isSaving}

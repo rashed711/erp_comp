@@ -170,20 +170,25 @@ const Quotations: React.FC<QuotationsProps> = ({ onNavigate }) => {
                     cache: 'no-cache',
                 });
 
+                const responseText = await response.text();
+                
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${errorText}`);
+                    throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${responseText}`);
                 }
 
-                const result = await response.json();
-
-                if (result.success) {
-                    setQuotations(prev => prev.filter(q => q.id !== quotationToDelete));
-                } else {
-                    throw new Error(result.error || 'فشل حذف عرض السعر.');
+                try {
+                    const result = JSON.parse(responseText);
+                    if (result.success) {
+                        setQuotations(prev => prev.filter(q => q.id !== quotationToDelete));
+                    } else {
+                        throw new Error(result.error || 'فشل حذف عرض السعر.');
+                    }
+                } catch (jsonError) {
+                     throw new Error(`فشل تحليل استجابة الخادم كـ JSON. قد يكون هناك خطأ في PHP. الاستجابة: ${responseText}`);
                 }
+
             } catch (err) {
-                const errorMessage = err instanceof Error ? `فشل الطلب. تحقق من اتصالك ومن تبويب "Network" في أدوات المطور. التفاصيل: ${err.message}` : 'حدث خطأ غير متوقع.';
+                const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
                 alert(`خطأ في حذف عرض السعر: ${errorMessage}`);
             } finally {
                 handleCloseDeleteModal();

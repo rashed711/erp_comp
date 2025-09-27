@@ -143,7 +143,8 @@ const CreateSalesInvoice: React.FC<CreateSalesInvoiceProps> = ({ onBack }) => {
                         if (selectedProduct) {
                             updatedItem.productId = selectedProduct.id;
                             updatedItem.description = selectedProduct.description || selectedProduct.name;
-                            updatedItem.unitPrice = selectedProduct.price;
+                            // FIX: Changed 'price' to 'averageSalePrice' to match the Product type.
+                            updatedItem.unitPrice = selectedProduct.averageSalePrice;
                             updatedItem.unit = selectedProduct.unit || 'No';
                         }
                     }
@@ -378,7 +379,6 @@ const CreateSalesInvoice: React.FC<CreateSalesInvoiceProps> = ({ onBack }) => {
                                 {products.map(p => <option key={p.id} value={p.name} />)}
                             </datalist>
                         </div>
-                        
                         <div className="mt-6">
                             <button onClick={handleAddItem} className="text-sm text-emerald-600 font-semibold flex items-center gap-2 hover:text-emerald-800 p-2 rounded-lg hover:bg-emerald-50 transition-colors">
                                 <Icons.PlusIcon className="w-5 h-5" />
@@ -393,7 +393,11 @@ const CreateSalesInvoice: React.FC<CreateSalesInvoiceProps> = ({ onBack }) => {
                           <div className="w-full lg:w-1/2 space-y-4">
                               <div>
                                   <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">ملاحظات</label>
-                                  <textarea id="notes" rows={4} value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md" placeholder="أضف أي ملاحظات إضافية هنا..."></textarea>
+                                  <textarea id="notes" rows={2} value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"></textarea>
+                              </div>
+                              <div>
+                                  <label htmlFor="terms" className="block text-sm font-medium text-gray-700 mb-2">الشروط والأحكام</label>
+                                  <textarea id="terms" rows={4} value={terms} onChange={e => setTerms(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"></textarea>
                               </div>
                           </div>
                           <div className="w-full lg:w-1/2">

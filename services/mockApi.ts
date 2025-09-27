@@ -201,13 +201,7 @@ const customerAccountStatements: { [key: string]: AccountStatement } = {
     }
 };
 
-const productsData: Product[] = [
-    { id: 'PROD-001', name: 'لابتوب Dell XPS 15', description: 'لابتوب قوي للأعمال والتصميم.', sku: 'DELL-XPS15-I7', category: 'أجهزة لابتوب', unit: 'No', price: 8500, stockQuantity: 25, imageUrl: 'https://picsum.photos/id/1/100/100', createdAt: '2024-07-01 10:00 ص' },
-    { id: 'PROD-002', name: 'شاشة Samsung Odyssey G7', sku: 'SAM-ODY-G7-32', category: 'شاشات', unit: 'No', price: 2800, stockQuantity: 40, imageUrl: 'https://picsum.photos/id/2/100/100', createdAt: '2024-07-02 11:30 ص' },
-    { id: 'PROD-003', name: 'لوحة مفاتيح Logitech MX Keys', sku: 'LOG-MXK-01', category: 'ملحقات', unit: 'No', price: 550, stockQuantity: 150, imageUrl: 'https://picsum.photos/id/3/100/100', createdAt: '2024-07-05 02:15 م' },
-    { id: 'PROD-004', name: 'طابعة HP LaserJet Pro', sku: 'HP-LJP-M404', category: 'طابعات', unit: 'No', price: 1200, stockQuantity: 30, imageUrl: 'https://picsum.photos/id/4/100/100', createdAt: '2024-07-10 09:00 ص' },
-    { id: 'PROD-005', name: 'قرص صلب خارجي Seagate 2TB', sku: 'SEA-EXT-2TB', category: 'تخزين', unit: 'No', price: 350, stockQuantity: 200, imageUrl: 'https://picsum.photos/id/5/100/100', createdAt: '2024-07-15 04:45 م' },
-];
+const productsData: Product[] = [];
 
 const usersData: User[] = [
     { id: 'USR-001', name: 'أحمد الرئيسي', email: 'ahmed.manager@example.com', role: 'مدير النظام', status: 'active', avatar: 'https://picsum.photos/id/1005/100/100' },

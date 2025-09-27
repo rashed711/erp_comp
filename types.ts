@@ -172,10 +172,10 @@ export interface Product {
   id: string;
   name: string;
   description?: string;
-  sku: string;
   category: string;
   unit?: 'No' | 'Tone' | 'Kg' | 'MT';
-  price: number;
+  averagePurchasePrice: number;
+  averageSalePrice: number;
   stockQuantity: number;
   imageUrl: string;
   createdAt: string;

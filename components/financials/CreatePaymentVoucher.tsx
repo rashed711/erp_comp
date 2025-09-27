@@ -100,17 +100,22 @@ const CreatePaymentVoucher: React.FC<CreatePaymentVoucherProps> = ({ onBack, vou
                 body: JSON.stringify(payload),
             });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Server request failed (HTTP ${response.status}). Details: ${errorText}`);
-            }
+            const responseText = await response.text();
 
-            const result = await response.json();
-            if (result.success) {
-                alert(isEditMode ? "تم تحديث السند بنجاح!" : "تم إنشاء السند بنجاح!");
-                onBack();
-            } else {
-                throw new Error(result.error || 'فشل في حفظ السند.');
+            if (!response.ok) {
+                throw new Error(`Server request failed (HTTP ${response.status}). Details: ${responseText}`);
+            }
+            
+            try {
+                const result = JSON.parse(responseText);
+                if (result.success) {
+                    alert(isEditMode ? "تم تحديث السند بنجاح!" : "تم إنشاء السند بنجاح!");
+                    onBack();
+                } else {
+                    throw new Error(result.error || 'فشل في حفظ السند.');
+                }
+            } catch (jsonError) {
+                throw new Error(`فشل تحليل استجابة الخادم كـ JSON. قد يكون هناك خطأ في PHP. الاستجابة: ${responseText}`);
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';

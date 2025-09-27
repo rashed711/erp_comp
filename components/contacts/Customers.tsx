@@ -36,7 +36,6 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
             
             const text = await response.text();
             
-            // NEW: Detect hosting security challenge
             if (text.includes('aes.js') && text.includes('document.cookie')) {
                 throw new Error('HOSTING_SECURITY_CHALLENGE');
             }
@@ -49,7 +48,17 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
             if (typeof data === 'object' && data !== null && data.error) {
                 throw new Error(data.error);
             }
-            setCustomers(data);
+            
+            const formattedData: Customer[] = data.map((c: any) => ({
+                id: String(c.id),
+                name: c.name,
+                email: c.email,
+                phone: c.phone,
+                address: c.address,
+                createdAt: c.createdAt // PHP script already formats this
+            }));
+
+            setCustomers(formattedData);
         } catch (err: any) {
             console.error("Fetch Error:", err);
             let detailedError: React.ReactNode;
@@ -150,20 +159,25 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                     cache: 'no-cache',
                 });
                 
+                const responseText = await response.text();
+
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${errorText}`);
+                    throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${responseText}`);
                 }
                 
-                const result = await response.json();
-
-                if (result.success) {
-                    setCustomers(prev => prev.filter(c => c.id !== customerToDelete.id));
-                } else {
-                    throw new Error(result.error || 'فشل حذف العميل.');
+                try {
+                    const result = JSON.parse(responseText);
+                    if (result.success) {
+                        setCustomers(prev => prev.filter(c => c.id !== customerToDelete.id));
+                    } else {
+                        throw new Error(result.error || 'فشل حذف العميل.');
+                    }
+                } catch (jsonError) {
+                    throw new Error(`فشل تحليل استجابة الخادم كـ JSON. قد يكون هناك خطأ في PHP. الاستجابة: ${responseText}`);
                 }
+
             } catch (err) {
-                const errorMessage = err instanceof Error ? `فشل الطلب. تحقق من اتصالك ومن تبويب "Network" في أدوات المطور. التفاصيل: ${err.message}` : 'حدث خطأ غير متوقع.';
+                const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
                 alert(`خطأ في حذف العميل: ${errorMessage}`);
             } finally {
                 handleCloseDeleteModal();
@@ -205,22 +219,26 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                 cache: 'no-cache' 
             });
             
+            const responseText = await response.text();
+
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${errorText}`);
+                throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${responseText}`);
             }
             
-            const result = await response.json();
-
-            if (response.ok && result.success !== false) {
-                 await fetchCustomers(); // Refetch all customers for consistency
-                 handleCloseAddEditModal();
-            } else {
-                throw new Error(result.error || `فشل في ${isEdit ? 'تحديث' : 'إضافة'} العميل.`);
+            try {
+                const result = await JSON.parse(responseText);
+                if (result.success !== false) { // Handle cases where success might not be explicitly true
+                     await fetchCustomers(); // Refetch all customers for consistency
+                     handleCloseAddEditModal();
+                } else {
+                    throw new Error(result.error || `فشل في ${isEdit ? 'تحديث' : 'إضافة'} العميل.`);
+                }
+            } catch (jsonError) {
+                 throw new Error(`فشل تحليل استجابة الخادم كـ JSON. قد يكون هناك خطأ في PHP. الاستجابة: ${responseText}`);
             }
 
         } catch (err) {
-             const errorMessage = err instanceof Error ? `فشل الطلب. تحقق من اتصالك ومن تبويب "Network" في أدوات المطور. التفاصيل: ${err.message}` : 'حدث خطأ غير متوقع أثناء الاتصال بالخادم.';
+             const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع أثناء الاتصال بالخادم.';
              setSaveError(errorMessage);
              console.error(err);
         } finally {

@@ -178,7 +178,8 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                         if (selectedProduct) {
                             updatedItem.productId = selectedProduct.id;
                             updatedItem.description = selectedProduct.description || selectedProduct.name;
-                            updatedItem.unitPrice = selectedProduct.price;
+                            // FIX: Changed 'price' to 'averageSalePrice' to match the Product type.
+                            updatedItem.unitPrice = selectedProduct.averageSalePrice;
                             updatedItem.unit = selectedProduct.unit || 'No';
                         }
                     }

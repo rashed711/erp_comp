@@ -49,7 +49,15 @@ const Suppliers: React.FC<SuppliersProps> = ({ onNavigate }) => {
             if (data.error) {
                 throw new Error(data.error);
             }
-            setSuppliers(data);
+            const formattedData: Supplier[] = data.map((s: any) => ({
+                id: String(s.id),
+                name: s.name,
+                email: s.email,
+                phone: s.phone,
+                address: s.address,
+                createdAt: s.createdAt // PHP script already formats this
+            }));
+            setSuppliers(formattedData);
         } catch (err: any) {
             console.error("Fetch Error:", err);
             let detailedError: React.ReactNode;
@@ -150,19 +158,24 @@ const Suppliers: React.FC<SuppliersProps> = ({ onNavigate }) => {
                     cache: 'no-cache',
                 });
 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${errorText}`);
-                }
+                const responseText = await response.text();
 
-                const result = await response.json();
-                if (result.success) {
-                    setSuppliers(prev => prev.filter(s => s.id !== supplierToDelete.id));
-                } else {
-                    throw new Error(result.error || 'فشل حذف المورد.');
+                if (!response.ok) {
+                    throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${responseText}`);
+                }
+                
+                try {
+                    const result = JSON.parse(responseText);
+                    if (result.success) {
+                        setSuppliers(prev => prev.filter(s => s.id !== supplierToDelete.id));
+                    } else {
+                        throw new Error(result.error || 'فشل حذف المورد.');
+                    }
+                } catch(jsonError) {
+                    throw new Error(`فشل تحليل استجابة الخادم كـ JSON. قد يكون هناك خطأ في PHP. الاستجابة: ${responseText}`);
                 }
             } catch (err) {
-                const errorMessage = err instanceof Error ? `فشل الطلب. تحقق من اتصالك ومن تبويب "Network" في أدوات المطور. التفاصيل: ${err.message}` : 'حدث خطأ غير متوقع.';
+                const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
                 alert(`خطأ في حذف المورد: ${errorMessage}`);
             } finally {
                 handleCloseDeleteModal();
@@ -203,21 +216,25 @@ const Suppliers: React.FC<SuppliersProps> = ({ onNavigate }) => {
                 cache: 'no-cache' 
             });
             
+            const responseText = await response.text();
+
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${errorText}`);
+                throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${responseText}`);
             }
 
-            const result = await response.json();
-            
-            if (response.ok && result.success !== false) {
-                await fetchSuppliers(); // Refetch all suppliers for consistency
-                handleCloseAddEditModal();
-            } else {
-                 throw new Error(result.error || `فشل في ${isEdit ? 'تحديث' : 'إضافة'} المورد.`);
+            try {
+                const result = await JSON.parse(responseText);
+                if (result.success !== false) {
+                    await fetchSuppliers(); // Refetch all suppliers for consistency
+                    handleCloseAddEditModal();
+                } else {
+                     throw new Error(result.error || `فشل في ${isEdit ? 'تحديث' : 'إضافة'} المورد.`);
+                }
+            } catch (jsonError) {
+                throw new Error(`فشل تحليل استجابة الخادم كـ JSON. قد يكون هناك خطأ في PHP. الاستجابة: ${responseText}`);
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? `فشل الطلب. تحقق من اتصالك ومن تبويب "Network" في أدوات المطور. التفاصيل: ${err.message}` : 'حدث خطأ غير متوقع.';
+            const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
             setSaveError(errorMessage);
         } finally {
             setIsSaving(false);
