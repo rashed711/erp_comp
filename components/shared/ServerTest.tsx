@@ -1,163 +1,163 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../../services/api';
 import * as Icons from '../icons/ModuleIcons';
+// FIX: Imported ClockIcon from GenericIcons as it's not in ModuleIcons
 import { ClockIcon } from '../icons/GenericIcons';
 
 type TestStatus = 'idle' | 'loading' | 'success' | 'error';
-type TestResult = {
-    status: TestStatus;
-    message: React.ReactNode;
+
+interface StatusInfo {
+    border: string;
+    bg: string;
+    text: string;
+    label: string;
+    icon: React.ReactNode;
+}
+
+const statusStyles: Record<TestStatus, StatusInfo> = {
+    idle: { border: 'border-gray-400', bg: 'bg-gray-50', text: 'text-gray-600', label: 'في الانتظار', icon: <ClockIcon className="w-5 h-5 text-gray-500" /> },
+    loading: { border: 'border-blue-400', bg: 'bg-blue-50', text: 'text-blue-600', label: 'جاري الاختبار...', icon: <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> },
+    // FIX: Used Icons.ShieldCheckIcon for consistency
+    success: { border: 'border-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'نجح', icon: <Icons.ShieldCheckIcon className="w-5 h-5 text-emerald-500" /> },
+    error: { border: 'border-red-500', bg: 'bg-red-50', text: 'text-red-700', label: 'فشل', icon: <Icons.XIcon className="w-5 h-5 text-red-500" /> },
 };
 
-const ResultCard: React.FC<{ title: string; result: TestResult }> = ({ title, result }) => {
-    const styles = {
-        idle: { border: 'border-gray-400', bg: 'bg-gray-50', text: 'text-gray-600', label: 'في الانتظار', icon: <ClockIcon className="w-5 h-5 text-gray-500" /> },
-        loading: { border: 'border-blue-400', bg: 'bg-blue-50', text: 'text-blue-600', label: 'جاري...', icon: <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> },
-        success: { border: 'border-green-400', bg: 'bg-green-50', text: 'text-green-600', label: 'نجاح', icon: <Icons.ShieldCheckIcon className="w-5 h-5 text-green-500" /> },
-        error: { border: 'border-red-400', bg: 'bg-red-50', text: 'text-red-600', label: 'فشل', icon: <Icons.XIcon className="w-5 h-5 text-red-500" /> },
-    };
-    const currentStyle = styles[result.status];
 
+const ResultCard: React.FC<{ title: string; status: TestStatus; children: React.ReactNode }> = ({ title, status, children }) => {
+    const styles = statusStyles[status];
     return (
-        <div className={`border-l-4 p-4 rounded-md ${currentStyle.border} ${currentStyle.bg}`}>
-            <div className="flex justify-between items-center">
-                <h3 className="font-bold text-gray-800">{title}</h3>
-                <div className="flex items-center gap-2">
-                    <span className={`font-semibold ${currentStyle.text}`}>{currentStyle.label}</span>
-                    {currentStyle.icon}
+        <div className={`border-l-4 ${styles.border} ${styles.bg} p-4 rounded-md shadow-sm`}>
+            <div className="flex items-center justify-between">
+                <h3 className={`text-lg font-bold ${styles.text}`}>{title}</h3>
+                <div className="flex items-center gap-2 text-sm">
+                    {styles.icon}
+                    <span className={styles.text}>{styles.label}</span>
                 </div>
             </div>
-            <div className="mt-3 text-sm text-gray-700">{result.message}</div>
+            <div className={`mt-3 text-sm ${styles.text}`}>
+                {children}
+            </div>
         </div>
     );
 };
 
-
 const ServerTest: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-    const [publicApiTest, setPublicApiTest] = useState<TestResult>({ status: 'idle', message: 'سيبدأ الاختبار قريباً...' });
-    const [generalTest, setGeneralTest] = useState<TestResult>({ status: 'idle', message: 'ينتظر الاختبار الأول...' });
-    const [customersTest, setCustomersTest] = useState<TestResult>({ status: 'idle', message: 'ينتظر الاختبار الثاني...' });
-    const [isTesting, setIsTesting] = useState(false);
+    const [testResults, setTestResults] = useState<any>(null);
+    const [status, setStatus] = useState<TestStatus>('loading');
+    const [error, setError] = useState<string | null>(null);
 
-    const runTests = async () => {
-        setIsTesting(true);
-        // Reset states
-        setPublicApiTest({ status: 'loading', message: 'جاري اختبار الاتصال بالإنترنت...' });
-        setGeneralTest({ status: 'idle', message: 'ينتظر الاختبار الأول...' });
-        setCustomersTest({ status: 'idle', message: 'ينتظر الاختبار الثاني...' });
-
-        // Test 1: Public API to check general fetch capability
+    const runTest = async () => {
+        setStatus('loading');
+        setError(null);
+        setTestResults(null);
         try {
-            const publicApiResponse = await fetch('https://api.publicapis.org/entries', { cache: 'no-cache' });
-            if (!publicApiResponse.ok) throw new Error(`Status: ${publicApiResponse.status}`);
-            await publicApiResponse.json();
-            setPublicApiTest({ status: 'success', message: 'تم الاتصال بالإنترنت بنجاح.' });
-        } catch (err: any) {
-            setPublicApiTest({ status: 'error', message: (
-                <div>
-                    <p className="font-bold">فشل الاتصال بالإنترنت.</p>
-                    <p>لا يمكن للمتصفح إجراء طلبات `fetch` خارجية. قد تكون المشكلة من اتصالك بالإنترنت أو من إضافة في المتصفح (مثل مانع الإعلانات) تمنع الطلبات.</p>
-                </div>
-            ) });
-            setGeneralTest({ status: 'error', message: 'تم الإلغاء.' });
-            setCustomersTest({ status: 'error', message: 'تم الإلغاء.' });
-            setIsTesting(false);
-            return;
-        }
+            const response = await fetch(`${API_BASE_URL}test_connection.php`, {
+                cache: 'no-cache',
+                headers: { 'Accept': 'application/json' },
+            });
 
-        // Test 2: General Connection to user's server via proxy
-        setGeneralTest({ status: 'loading', message: `جاري اختبار الاتصال العام بالخادم عبر test_connection.php...` });
-        try {
-            const generalResponse = await fetch(`${API_BASE_URL}test_connection.php`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } });
-            if (!generalResponse.ok) throw new Error(`استجاب الخادم برمز الحالة ${generalResponse.status}.`);
-            const generalData = await generalResponse.json();
-            if (generalData?.database_connection?.status !== 'تم الاتصال بنجاح') throw new Error(generalData?.database_connection?.error_details || 'فشل الاتصال بقاعدة البيانات.');
-            setGeneralTest({ status: 'success', message: 'ممتاز! الاتصال العام بالخادم وقاعدة البيانات ناجح.' });
-        } catch (err: any) {
-             setGeneralTest({ status: 'error', message: (
-                <div>
-                    <p className="font-bold">فشل الاتصال العام بالخادم أو قاعدة البيانات.</p>
-                    <p>تأكد من صحة بيانات قاعدة البيانات في ملف <code>api/config.php</code> وصحة رابط API الأصلي (قبل الإضافة الوسيطة) في <code>services/api.ts</code>.</p>
-                </div>
-            )});
-            setCustomersTest({ status: 'error', message: 'تم الإلغاء.' });
-            setIsTesting(false);
-            return;
-        }
-
-        // Test 3: Customers API via proxy
-        setCustomersTest({ status: 'loading', message: `الاتصال العام ناجح. جاري اختبار الاتصال بـ customers.php...` });
-        try {
-            const customersResponse = await fetch(`${API_BASE_URL}customers.php`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } });
-            if (!customersResponse.ok) {
-                const errorText = await customersResponse.text();
-                throw new Error(`استجاب الخادم برمز الحالة ${customersResponse.status}. قد يعني هذا وجود خطأ برمجي (Fatal Error) في ملف PHP. الرد الخام من الخادم: ${errorText}`);
+            if (!response.ok) {
+                 if(response.status === 404) {
+                     throw new Error(`فشل الاتصال بالخادم (خطأ 404): الملف test_connection.php غير موجود. تأكد من أنك قمت بإنشاء الملف في المسار الصحيح (${API_BASE_URL}test_connection.php) وأن الخادم (XAMPP) يعمل.`);
+                 }
+                throw new Error(`فشل الاتصال بالخادم. رمز الحالة: ${response.status}. تأكد من أن Apache يعمل ومن صحة الرابط في api.ts`);
             }
-            await customersResponse.json(); // Validate JSON
-            setCustomersTest({ status: 'success', message: 'رائع! تم الاتصال بنجاح وجلب بيانات العملاء.' });
+            
+            const text = await response.text();
+            
+            if (text.includes('aes.js')) {
+                 throw new Error('فشل الاتصال بسبب نظام أمان الاستضافة (JavaScript Challenge). يرجى مراجعة الدعم الفني للاستضافة لتعطيل هذه الميزة عن مجلد /api/.');
+            }
+
+            const data = JSON.parse(text);
+            setTestResults(data);
+            setStatus('success');
         } catch (err: any) {
-            setCustomersTest({ status: 'error', message: (
-                <div>
-                    <p className="font-bold">فشل الاتصال بملف `customers.php`.</p>
-                    <p>بما أن الاتصال العام ناجح، فهذا يؤكد وجود خطأ برمجي (Fatal Error) في ملف <code>api/customers.php</code> يمنعه من العمل بشكل صحيح.</p>
-                    <p className="mt-3 font-semibold text-red-700">خطوات الحل:</p>
-                    <ol className="list-decimal list-inside mt-1 space-y-1">
-                        <li>اذهب إلى ملف <code>api/customers.php</code> على استضافتك.</li>
-                        <li>أضف الكود التالي في بداية الملف (بعد <code>{"<?php"}</code> مباشرة) لتفعيل عرض الأخطاء:</li>
-                    </ol>
-                    <pre className="mt-2 p-3 bg-gray-100 text-gray-800 rounded-md text-xs text-left" dir="ltr">
-                        {`ini_set('display_errors', 1);\nini_set('display_startup_errors', 1);\nerror_reporting(E_ALL);`}
-                    </pre>
-                    <p className="mt-2">3. اذهب إلى تبويب "Network" في أدوات المطور بالمتصفح (F12)، ثم قم بإعادة تشغيل هذا الاختبار. ابحث عن طلب `customers.php` الذي يظهر باللون الأحمر واضغط عليه. اذهب إلى تبويب "Response" لرؤية رسالة الخطأ البرمجية بالتفصيل.</p>
-                    <p className="mt-2">4. قم بإصلاح الخطأ الذي يظهر لك في ملف <code>customers.php</code>. بعد إصلاحه، لا تنسَ حذف أسطر عرض الأخطاء التي أضفتها.</p>
-                </div>
-            )});
+            setStatus('error');
+            if (err instanceof SyntaxError) {
+                setError("فشل تحليل استجابة الخادم (Invalid JSON). هذا يعني وجود خطأ فادح (Fatal Error) في ملف PHP. تحقق من ملفات الخطأ في XAMPP (apache/logs/error.log) لتحديد المشكلة.");
+            } else {
+                 setError(err.message || 'حدث خطأ غير معروف. تأكد من تشغيل XAMPP ومن صحة رابط API.');
+            }
         }
-        
-        setIsTesting(false);
     };
     
     useEffect(() => {
-        runTests();
+        runTest();
     }, []);
     
-    const allTestsDone = !isTesting;
-    const allSuccess = publicApiTest.status === 'success' && generalTest.status === 'success' && customersTest.status === 'success';
+    const allTablesExist = testResults?.table_status?.every((t: any) => t.exists);
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 bg-white rounded-lg shadow-md max-w-4xl mx-auto">
-            <div className="flex justify-between items-center border-b pb-4 mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">أداة تشخيص اتصال الخادم</h1>
-                    <p className="text-gray-500 mt-1">تساعدك هذه الصفحة على تحديد وحل مشاكل الاتصال بالواجهة الخلفية (PHP) بشكل نهائي.</p>
-                </div>
-                 <div className="flex items-center gap-4">
-                    <button onClick={runTests} disabled={isTesting} className="bg-emerald-100 text-emerald-700 font-semibold py-2 px-4 rounded-lg hover:bg-emerald-200 transition-colors text-sm flex items-center gap-2 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-wait">
-                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isTesting ? 'animate-spin' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" /></svg>
+        <div className="bg-gray-100 min-h-screen">
+            <header className="bg-white shadow-sm p-4 sticky top-0 z-30">
+                <div className="container mx-auto flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                            <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" style={{ transform: 'scaleX(-1)' }} />
+                        </button>
+                        <div>
+                            <h1 className="text-lg sm:text-xl font-bold text-gray-800">تشخيص الاتصال بالخادم</h1>
+                            <p className="text-xs sm:text-sm text-gray-500">فحص حالة الخادم وقاعدة البيانات والجداول</p>
+                        </div>
+                    </div>
+                     <button onClick={runTest} disabled={status === 'loading'} className="flex items-center gap-2 text-sm bg-emerald-600 text-white py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 disabled:bg-gray-400">
+                        {status === 'loading' ? <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> : <Icons.ShareIcon style={{transform: 'rotate(180deg)'}} className="w-5 h-5"/>}
                         إعادة الاختبار
                     </button>
-                    <button onClick={onBack} className="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm">
-                        العودة
-                    </button>
-                 </div>
-            </div>
+                </div>
+            </header>
+            <main className="p-4 sm:p-6 md:p-8">
+                 <div className="max-w-4xl mx-auto space-y-6">
+                    {status === 'error' && (
+                        <ResultCard title="فشل الاختبار العام" status="error">
+                             <p className="font-bold">{error}</p>
+                        </ResultCard>
+                    )}
+                    {testResults && (
+                        <>
+                            <ResultCard title="1. فحص الخادم وبيئة PHP" status={testResults.server_info.status}>
+                                <ul className="list-disc pr-5 space-y-1">
+                                    <li>إصدار PHP: <strong>{testResults.server_info.php_version}</strong></li>
+                                    <li>برنامج الخادم: <strong>{testResults.server_info.server_software}</strong></li>
+                                </ul>
+                            </ResultCard>
+                            
+                             <ResultCard title="2. فحص الاتصال بقاعدة البيانات" status={testResults.connection_status.status}>
+                                {testResults.connection_status.status === 'success' ? (
+                                    <ul className="list-disc pr-5 space-y-1">
+                                        <li>حالة الاتصال: <strong className="text-emerald-700">ناجح</strong></li>
+                                        <li>اسم قاعدة البيانات: <strong>{testResults.connection_status.db_name}</strong></li>
+                                        <li>ترميز الأحرف: <strong>{testResults.connection_status.charset}</strong> (يجب أن يكون utf8mb4)</li>
+                                    </ul>
+                                ) : (
+                                    <p className="font-bold">{testResults.connection_status.message}</p>
+                                )}
+                            </ResultCard>
 
-            <div className="space-y-6">
-                <ResultCard title="الاختبار 1: الاتصال بالإنترنت" result={publicApiTest} />
-                <ResultCard title="الاختبار 2: الاتصال العام وقاعدة البيانات" result={generalTest} />
-                <ResultCard title="الاختبار 3: الاتصال بواجهة برمجة تطبيقات العملاء" result={customersTest} />
-
-                {allTestsDone && (
-                    <div className={`p-6 rounded-lg shadow-lg ${allSuccess ? 'bg-green-100 border-green-500 text-green-800' : 'bg-red-100 border-red-500 text-red-800'} border-l-4`}>
-                        <h3 className="font-bold text-lg">{allSuccess ? '🎉 تهانينا! كل شيء يعمل بشكل صحيح.' : 'التحليل النهائي والحل'}</h3>
-                        {allSuccess ? (
-                             <p className="mt-2">لقد نجحت جميع اختبارات الاتصال. يجب أن يعمل تطبيقك الآن بشكل صحيح.</p>
-                        ) : (
-                             <p className="mt-2">فشل واحد أو أكثر من الاختبارات. يرجى مراجعة رسائل الخطأ في الصناديق أعلاه واتباع خطوات الحل المقترحة بدقة.</p>
-                        )}
-                    </div>
-                )}
-            </div>
+                            {testResults.connection_status.status === 'success' && (
+                               <ResultCard title="3. فحص جداول قاعدة البيانات" status={allTablesExist ? 'success' : 'error'}>
+                                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                       {testResults.table_status.map((table: any) => (
+                                           <div key={table.table_name} className={`flex items-center gap-2 p-2 rounded-md ${table.exists ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                                               {/* FIX: Used Icons.ShieldCheckIcon for consistency */}
+                                               {table.exists ? <Icons.ShieldCheckIcon className="w-4 h-4" /> : <Icons.XIcon className="w-4 h-4" />}
+                                               <span className="font-mono text-xs">{table.table_name}</span>
+                                           </div>
+                                       ))}
+                                   </div>
+                                   {!allTablesExist && (
+                                        <div className="mt-4 border-t pt-3">
+                                            <p className="font-bold text-red-700">مشكلة: بعض الجداول المطلوبة غير موجودة!</p>
+                                            <p className="mt-1">الحل: اذهب إلى <strong>phpMyAdmin</strong>، اختر قاعدة البيانات <strong>`{testResults.connection_status.db_name}`</strong>، ثم اضغط على <strong>"Import"</strong> وقم باستيراد ملف <strong>`api/setup.sql`</strong> الذي تم تزويدك به.</p>
+                                        </div>
+                                   )}
+                               </ResultCard>
+                            )}
+                        </>
+                    )}
+                </div>
+            </main>
         </div>
     );
 };

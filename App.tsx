@@ -23,6 +23,8 @@ import ProfilePage from './components/profile/ProfilePage';
 import SettingsPage from './components/settings/SettingsPage';
 import Login from './components/auth/Login';
 import ServerTest from './components/shared/ServerTest';
+import CreateReceipt from './components/financials/CreateReceipt';
+import CreatePaymentVoucher from './components/financials/CreatePaymentVoucher';
 
 type Route = {
   page: string;
@@ -86,10 +88,18 @@ const App: React.FC = () => {
         return route.id ? <SalesInvoiceDetail invoiceId={route.id} onBack={() => handleNavigate('salesInvoices')} /> : <SalesInvoices onNavigate={handleNavigate} />;
       case 'receipts':
         return <Receipts onNavigate={handleNavigate} />;
+      case 'createReceipt':
+        return <CreateReceipt onBack={() => handleNavigate('receipts')} />;
+      case 'editReceipt':
+        return <CreateReceipt onBack={() => handleNavigate('receipts')} receiptId={route.id} />;
       case 'receiptDetail':
         return route.id ? <ReceiptDetail receiptId={route.id} onBack={() => handleNavigate('receipts')} /> : <Receipts onNavigate={handleNavigate} />;
       case 'paymentVouchers':
         return <PaymentVouchers onNavigate={handleNavigate} />;
+      case 'createPaymentVoucher':
+          return <CreatePaymentVoucher onBack={() => handleNavigate('paymentVouchers')} />;
+      case 'editPaymentVoucher':
+          return <CreatePaymentVoucher onBack={() => handleNavigate('paymentVouchers')} voucherId={route.id} />;
       case 'paymentVoucherDetail':
         return route.id ? <PaymentVoucherDetail voucherId={route.id} onBack={() => handleNavigate('paymentVouchers')} /> : <PaymentVouchers onNavigate={handleNavigate} />;
       case 'customers':
@@ -125,6 +135,10 @@ const App: React.FC = () => {
     'editQuotation',
     'createSalesInvoice',
     'createSupplierInvoice',
+    'createReceipt',
+    'editReceipt',
+    'createPaymentVoucher',
+    'editPaymentVoucher',
     'quotationDetail', 
     'salesInvoiceDetail', 
     'supplierInvoiceDetail', 
