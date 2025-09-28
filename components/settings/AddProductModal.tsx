@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Icons from '../icons/ModuleIcons';
 import { Product } from '../../types';
+import { API_BASE_URL } from '../../services/api';
+
+// A generic, embedded SVG placeholder for products without an image.
+const DEFAULT_PLACEHOLDER_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NkZTVmYSI+PHBhdGggZD0iTTE5IDNINWMtMS4xIDAtMiAuOS0yIDJ2MTRjMCAxLjEuOSAyIDIgMmgxNGMxLjEgMCAyLS45IDItMlY1YzAtMS4xLS45LTItMi0yem0wIDE2SDVWNWgxNHYxNHptLTUuMDQtNi43MWwtMi43NSAyLjc1bC0yLjE3LTIuMTdMMTYuMTcgMTRMOC40MyA2LjI2TDUgOS42OVYxOUgxOVYxMC41bC0yLjUtMi41eiIvPjwvc3ZnPg==';
 
 interface AddProductModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (productData: Omit<Product, 'id' | 'createdAt' | 'stockQuantity'>, id: string | null) => void;
+    onSave: (payload: FormData, id: string | null) => void;
     productToEdit: Product | null;
     isSaving: boolean;
     error: string | null;
@@ -18,9 +22,12 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
     const [unit, setUnit] = useState<'No' | 'Tone' | 'Kg' | 'MT'>('No');
     const [averagePurchasePrice, setAveragePurchasePrice] = useState('');
     const [averageSalePrice, setAverageSalePrice] = useState('');
-    const [imageUrl, setImageUrl] = useState('');
+    
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     const modalRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const isEditMode = !!productToEdit;
 
     useEffect(() => {
@@ -42,37 +49,69 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
     useEffect(() => {
         if (isOpen) {
             if (isEditMode) {
+                const siteRoot = API_BASE_URL.replace('/api/', '/');
+                const isExternalUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://');
+                const imageUrl = productToEdit.imageUrl 
+                    ? (isExternalUrl(productToEdit.imageUrl) ? productToEdit.imageUrl : `${siteRoot}${productToEdit.imageUrl}`) 
+                    : null;
+
                 setName(productToEdit.name);
                 setDescription(productToEdit.description || '');
                 setCategory(productToEdit.category);
                 setUnit(productToEdit.unit || 'No');
                 setAveragePurchasePrice(String(productToEdit.averagePurchasePrice || ''));
                 setAverageSalePrice(String(productToEdit.averageSalePrice || ''));
-                setImageUrl(productToEdit.imageUrl || '');
+                setImagePreview(imageUrl);
+                setSelectedFile(null);
             } else {
-                // Reset form for new product
                 setName('');
                 setDescription('');
                 setCategory('General');
                 setUnit('No');
                 setAveragePurchasePrice('');
                 setAverageSalePrice('');
-                setImageUrl('');
+                setImagePreview(null);
+                setSelectedFile(null);
             }
         }
     }, [isOpen, productToEdit, isEditMode]);
 
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setSelectedFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave({
-            name,
-            description,
-            category,
-            unit,
-            averagePurchasePrice: parseFloat(averagePurchasePrice) || 0,
-            averageSalePrice: parseFloat(averageSalePrice) || 0,
-            imageUrl: imageUrl || `https://picsum.photos/seed/${name.replace(/\s/g, '') || 'product'}/100/100`,
-        }, isEditMode ? productToEdit.id : null);
+
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('description', description);
+        formData.append('category', category);
+        formData.append('unit', unit);
+        formData.append('average_purchase_price', averagePurchasePrice || '0.00');
+        formData.append('average_sale_price', averageSalePrice || '0.00');
+        
+        if (selectedFile) {
+            formData.append('image', selectedFile);
+        }
+
+        const idToSave = isEditMode ? productToEdit!.id : null;
+
+        if (isEditMode) {
+            if (productToEdit?.imageUrl && !imagePreview) {
+                 formData.append('remove_image', '1');
+            }
+        }
+
+        onSave(formData, idToSave);
     };
 
     if (!isOpen) return null;
@@ -127,10 +166,30 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
                             </div>
                             
                             <div className="md:col-span-2">
-                                <label htmlFor="product-image-url" className="block text-sm font-medium text-gray-700">رابط صورة المنتج</label>
-                                <input type="text" id="product-image-url" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="اتركه فارغاً لتوليد صورة تلقائية" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                                <label className="block text-sm font-medium text-gray-700">صورة المنتج</label>
+                                <div className="mt-2 flex items-center gap-4">
+                                    <div className="w-20 h-20 rounded-md bg-gray-100 flex items-center justify-center overflow-hidden border">
+                                        <img src={imagePreview || DEFAULT_PLACEHOLDER_IMAGE} alt="معاينة" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <input 
+                                            type="file" 
+                                            ref={fileInputRef} 
+                                            onChange={handleFileChange} 
+                                            accept="image/*" 
+                                            className="hidden" 
+                                        />
+                                        <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm bg-white border border-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-50 transition-all duration-200">
+                                            {imagePreview ? 'تغيير الصورة' : 'اختيار صورة'}
+                                        </button>
+                                        {imagePreview && (
+                                            <button type="button" onClick={() => { setImagePreview(null); setSelectedFile(null); if(fileInputRef.current) fileInputRef.current.value = ''; }} className="text-sm text-red-600 hover:text-red-800 transition-colors text-right">
+                                                إزالة الصورة
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-
                         </div>
 
                          {error && (

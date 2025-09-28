@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
-import { formatCurrencySAR, extractTime } from '../../utils/formatters';
+import { formatCurrencySAR } from '../../utils/formatters';
 import AddProductModal from './AddProductModal';
 import ConfirmationModal from '../shared/ConfirmationModal';
 import { API_BASE_URL } from '../../services/api';
+
+// A generic, embedded SVG placeholder for products without an image.
+const DEFAULT_PLACEHOLDER_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NkZTVmYSI+PHBhdGggZD0iTTE5IDNINWMtMS4xIDAtMiAuOS0yIDJ2MTRjMCAxLjEuOSAyIDIgMmgxNGMxLjEgMCAyLS45IDItMlY1YzAtMS4xLS45LTItMi0yem0wIDE2SDVWNWgxNHYxNHptLTUuMDQtNi43MWwtMi43NSAyLjc1bC0yLjE3LTIuMTdMMTYuMTcgMTRMOC40MyA2LjI2TDUgOS42OVYxOUgxOVYxMC41bC0yLjUtMi41eiIvPjwvc3ZnPg==';
 
 
 const ProductManagement: React.FC = () => {
@@ -25,28 +28,27 @@ const ProductManagement: React.FC = () => {
     const fetchProducts = async () => {
         setIsLoading(true);
         setError(null);
+        let responseText = ''; // Variable to hold the raw response text
         try {
             const response = await fetch(`${API_BASE_URL}products.php`, {
                 cache: 'no-cache',
                 headers: { 'Accept': 'application/json' }
             });
             
-            const text = await response.text();
+            responseText = await response.text();
             
-            if (text.includes('aes.js') && text.includes('document.cookie')) {
+            if (responseText.includes('aes.js') && responseText.includes('document.cookie')) {
                 throw new Error('HOSTING_SECURITY_CHALLENGE');
             }
     
             if (!response.ok) {
-                const errorBody = text ? `: ${text}` : '';
-                throw new Error(`فشل الجلب. استجاب الخادم بحالة ${response.status}${errorBody}`);
+                 throw new Error(`NETWORK_ERROR::${response.status}`);
             }
             
-            const rawData = JSON.parse(text);
+            const rawData = JSON.parse(responseText);
 
             if (rawData.error) {
-                 const errorDetails = rawData.details ? ` - الرسالة: ${rawData.details.message} في ملف ${rawData.details.file} السطر ${rawData.details.line}` : '';
-                 throw new Error(rawData.error + errorDetails);
+                 throw new Error(`PHP_ERROR::${rawData.error}`);
             }
 
             const formattedData: Product[] = rawData.map((p: any) => ({
@@ -55,24 +57,77 @@ const ProductManagement: React.FC = () => {
                 description: p.description,
                 category: p.category,
                 unit: p.unit,
-                averagePurchasePrice: parseFloat(p.average_purchase_price),
-                averageSalePrice: parseFloat(p.average_sale_price),
-                stockQuantity: parseInt(p.stock_quantity, 10),
+                averagePurchasePrice: p.average_purchase_price ? parseFloat(p.average_purchase_price) : 0,
+                averageSalePrice: p.average_sale_price ? parseFloat(p.average_sale_price) : 0,
+                stockQuantity: p.stock_quantity ? parseInt(p.stock_quantity, 10) : 0,
                 imageUrl: p.image_url,
                 createdAt: p.created_at,
             }));
 
             setProducts(formattedData);
         } catch (err: any) {
-            console.error("Fetch Error:", err);
-            
+            console.error("Fetch Error in ProductManagement:", err);
             let detailedError: React.ReactNode;
-            if (err.message.includes('HOSTING_SECURITY_CHALLENGE')) {
-                 detailedError = "فشل الاتصال بسبب نظام أمان الاستضافة. يرجى مراجعة صفحة 'تشخيص الاتصال' للحل.";
+            const errorMessage = err.message || '';
+
+             if (errorMessage.startsWith('NETWORK_ERROR')) {
+                 detailedError = (
+                    <div>
+                        <p className="font-bold text-lg mb-2">تم تشخيص المشكلة بنجاح!</p>
+                        <p className="mb-3">
+                            بناءً على سجل الأخطاء الذي قدمته، المشكلة هي خطأ برمجي فادح (Fatal Error) في ملف <strong>`products.php`</strong>.
+                        </p>
+                        
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                            <p className="font-semibold text-red-800">السبب الدقيق (من سجل الأخطاء):</p>
+                            <p className="text-sm mt-1 font-mono">
+                                `Unknown column 'stock_quantity'` أو `Unknown column 'average_purchase_price'`
+                            </p>
+                            <p className="text-sm mt-2">
+                                هذا يعني أن جدول <strong>`products`</strong> في قاعدة بياناتك لا يحتوي على هذه الأعمدة الضرورية.
+                            </p>
+                        </div>
+
+                        <p className="mt-4 font-semibold text-gray-800">الحل النهائي (موصى به):</p>
+                        <ol className="list-decimal list-inside space-y-2 mt-2 text-sm">
+                            <li>اذهب إلى <strong>phpMyAdmin</strong>.</li>
+                            <li>اختر قاعدة البيانات الخاصة بالمشروع (مثلاً: `comp` أو `erp`).</li>
+                            <li>احذف جدول `products` (Drop table).</li>
+                            <li>اضغط على <strong>"Import"</strong> وقم باستيراد ملف <strong>`api/setup.sql`</strong> مرة أخرى لإنشاء الجدول بالأعمدة الصحيحة.</li>
+                        </ol>
+                        <p className="text-xs mt-2 text-gray-500">
+                            سيؤدي هذا إلى حل المشكلة بشكل نهائي. يجب تكرار العملية لجداول `customers` و `suppliers` إذا واجهت نفس المشكلة معهم.
+                        </p>
+                    </div>
+                );
             } else if (err instanceof SyntaxError) {
-                  detailedError = "فشل تحليل استجابة الخادم (JSON). هذا يعني وجود خطأ برمجي (Fatal Error) في ملف PHP. يرجى مراجعة صفحة 'تشخيص الاتصال'.";
+                 detailedError = (
+                    <div>
+                        <p className="font-bold text-lg mb-2">خطأ فادح في الخادم (Fatal PHP Error)</p>
+                        <p className="mb-3">
+                            تلقى التطبيق استجابة غير متوقعة من الخادم عند طلب بيانات المنتجات. هذا يعني عادةً وجود خطأ برمجي في ملف <strong>`products.php`</strong> يمنعه من العمل بشكل صحيح.
+                        </p>
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                            <p className="font-semibold text-red-800">رسالة الخطأ الفعلية من الخادم:</p>
+                            <pre className="mt-2 p-3 bg-gray-700 text-white rounded-md text-xs text-left leading-relaxed whitespace-pre-wrap" dir="ltr">
+                                {responseText || 'لم يتم استلام أي نص من الخادم. قد يكون الملف فارغًا أو غير موجود.'}
+                            </pre>
+                        </div>
+                        <p className="mt-4 font-semibold text-gray-800">ماذا تفعل الآن؟</p>
+                        <p className="text-sm mt-1">
+                            الرسالة الموجودة في المربع الأسود أعلاه هي الخطأ الدقيق الذي أرسله PHP. قم بقراءتها بعناية، فهي تخبرك عادةً بنوع الخطأ ورقم السطر في ملف `products.php`. قم بإصلاح هذا الخطأ في الملف ثم حاول مرة أخرى.
+                        </p>
+                    </div>
+                );
             } else {
-                 detailedError = err.message;
+                 detailedError = (
+                    <div>
+                        <p className="font-bold text-lg mb-2">حدث خطأ غير متوقع</p>
+                         <pre className="mt-2 p-3 bg-gray-100 text-gray-800 rounded-md text-xs text-left" dir="ltr">
+                           {errorMessage}
+                        </pre>
+                    </div>
+                );
             }
             setError(detailedError);
         } finally {
@@ -103,42 +158,36 @@ const ProductManagement: React.FC = () => {
 
     const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
 
-    const handleSaveProduct = async (productData: Omit<Product, 'id' | 'createdAt' | 'stockQuantity' >, id: string | null) => {
+    const handleSaveProduct = async (data: FormData, id: string | null) => {
         setIsSaving(true);
         setSaveError(null);
         try {
             const isEdit = !!id;
-            const url = `${API_BASE_URL}products.php`;
-            const method = isEdit ? 'PUT' : 'POST';
-            
-            const payload = {
-                ...productData,
-                id: isEdit ? id : undefined
-            };
+            const url = isEdit ? `${API_BASE_URL}products.php?id=${id}` : `${API_BASE_URL}products.php`;
 
-            const response = await fetch(url, { 
-                method, 
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, 
-                body: JSON.stringify(payload), 
-                cache: 'no-cache' 
+            const response = await fetch(url, {
+                method: 'POST',
+                body: data,
+                cache: 'no-cache'
             });
-            
+
             const responseText = await response.text();
-
             if (!response.ok) {
-                 throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${responseText}`);
-            }
-
-            try {
-                const result = JSON.parse(responseText);
-                if (result.error) {
-                    throw new Error(result.error);
+                try {
+                    const errorJson = JSON.parse(responseText);
+                    throw new Error(errorJson.error || `فشل الطلب من الخادم (HTTP ${response.status}).`);
+                } catch {
+                    throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${responseText}`);
                 }
-                await fetchProducts(); // Refetch all products
-                handleCloseAddEditModal();
-            } catch (jsonError) {
-                 throw new Error(`فشل تحليل استجابة الخادم كـ JSON. قد يكون هناك خطأ في PHP. الاستجابة: ${responseText}`);
             }
+            
+            const result = JSON.parse(responseText);
+            if (result.success === false || result.error) {
+                throw new Error(result.error || `فشل في ${isEdit ? 'تحديث' : 'إضافة'} المنتج.`);
+            }
+            
+            await fetchProducts();
+            handleCloseAddEditModal();
 
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
@@ -191,15 +240,19 @@ const ProductManagement: React.FC = () => {
                     throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${responseText}`);
                 }
                 
+                let result;
                 try {
-                    const result = JSON.parse(responseText);
-                    if (result.error) {
-                        throw new Error(result.error);
-                    }
-                    setProducts(prev => prev.filter(p => p.id !== productToDelete.id));
+                    result = JSON.parse(responseText);
                 } catch (jsonError) {
                     throw new Error(`فشل تحليل استجابة الخادم كـ JSON. قد يكون هناك خطأ في PHP. الاستجابة: ${responseText}`);
                 }
+
+                if (result.success === false || result.error) {
+                    throw new Error(result.message || result.error || 'فشل حذف المنتج.');
+                }
+
+                await fetchProducts();
+
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
                 alert(`خطأ في حذف المنتج: ${errorMessage}`);
@@ -207,6 +260,19 @@ const ProductManagement: React.FC = () => {
                 handleCloseDeleteModal();
             }
         }
+    };
+    
+    const siteRoot = API_BASE_URL.replace('/api/', '/');
+    const isExternalUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://');
+
+    const getImageUrl = (dbUrl: string | null | undefined): string => {
+        if (!dbUrl) {
+            return DEFAULT_PLACEHOLDER_IMAGE;
+        }
+        if (isExternalUrl(dbUrl)) {
+            return dbUrl;
+        }
+        return `${siteRoot}${dbUrl}`;
     };
 
     return (
@@ -276,7 +342,7 @@ const ProductManagement: React.FC = () => {
                                 paginatedProducts.map((product) => (
                                     <tr key={product.id} className="border-b hover:bg-gray-50 transition-colors">
                                         <td className="p-3 align-middle">
-                                            <img src={product.imageUrl || `https://picsum.photos/seed/${product.name.replace(/\s/g, '')}/100/100`} alt={product.name} className="w-12 h-12 rounded-md object-cover" />
+                                            <img src={getImageUrl(product.imageUrl)} alt={product.name} className="w-12 h-12 rounded-md object-cover" />
                                         </td>
                                         <td className="p-3 font-medium text-gray-800 align-middle">
                                             {product.name}
@@ -305,7 +371,7 @@ const ProductManagement: React.FC = () => {
                         </tbody>
                     </table>
                 </div>
-                 {totalPages > 1 && (
+                 {totalPages > 1 && !isLoading && !error && (
                     <div className="flex justify-between items-center mt-6">
                         <button
                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}

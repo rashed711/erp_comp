@@ -1,23 +1,47 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getUsers } from '../../services/mockApi';
 import { User } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import ConfirmationModal from '../shared/ConfirmationModal';
 import AddUserModal from './AddUserModal';
+import { API_BASE_URL } from '../../services/api';
+
+// A generic, embedded SVG placeholder for users without an avatar.
+const DEFAULT_PLACEHOLDER_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NkZTVmYSI+PHBhdGggZD0iTTIgMjB2LTJjMC0yLjIgMy42LTQgOC00czggMS44IDggNHYySDJ6bTQtMmgxMHYtLjZjMC0xLjMtMi43LTEuOS02LTEuOS0zLjMgMC02IC42LTYgMS45VjE4em02LTljMy4zIDAgNi0yLjcgNi02cy0yLjctNi02LTZzLTYgMi43LTYgNnMyLjcgNiA2IDZ6bTAtMmMyLjIgMCA0LTEuOCA0LTRzLTEuOC00LTQtNC00IDEuOC00IDRzMS44IDQgNCA0eiIvPjwvc3ZnPg==';
 
 const UserManagement: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
     const [userToEdit, setUserToEdit] = useState<User | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     const ITEMS_PER_PAGE = 5;
 
+    const fetchUsers = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const response = await fetch(`${API_BASE_URL}users.php`, { cache: 'no-cache' });
+            if (!response.ok) throw new Error('فشل في جلب بيانات المستخدمين.');
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+            setUsers(data);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
+            setError(errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     useEffect(() => {
-        setUsers(getUsers());
+        fetchUsers();
     }, []);
 
     const filteredUsers = useMemo(() => {
@@ -70,18 +94,22 @@ const UserManagement: React.FC = () => {
 
     const handleDeleteUser = () => {
         if (userToDelete) {
-            setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+            // Implement API call for deletion
+            console.log("Deleting user:", userToDelete.id);
+            alert("ميزة الحذف قيد الإنشاء.");
             handleCloseDeleteModal();
         }
     };
 
     const handleOpenAddModal = () => {
         setUserToEdit(null);
+        setSaveError(null);
         setIsAddEditModalOpen(true);
     };
 
     const handleOpenEditModal = (user: User) => {
         setUserToEdit(user);
+        setSaveError(null);
         setIsAddEditModalOpen(true);
     };
 
@@ -90,21 +118,57 @@ const UserManagement: React.FC = () => {
         setUserToEdit(null);
     };
 
-    const handleSaveUser = (userData: Omit<User, 'id'>, id: string | null) => {
-        if (id) { // Edit Mode
-            setUsers(prev => prev.map(u => 
-                u.id === id ? { ...u, ...userData } : u
-            ));
-        } else { // Add Mode
-            const newUser: User = {
-                ...userData,
-                id: `USR-${Math.floor(Math.random() * 1000)}`,
-            };
-            setUsers(prev => [newUser, ...prev]);
-        }
-        handleCloseAddEditModal();
-    };
+    const handleSaveUser = async (data: FormData, id: string | null) => {
+        setIsSaving(true);
+        setSaveError(null);
+        try {
+            const isEdit = !!id;
+            const url = isEdit ? `${API_BASE_URL}users.php?id=${id}` : `${API_BASE_URL}users.php`;
 
+            const response = await fetch(url, {
+                method: 'POST',
+                body: data,
+                cache: 'no-cache'
+            });
+            
+            const responseText = await response.text();
+            if (!response.ok) {
+                try {
+                    const errorJson = JSON.parse(responseText);
+                    throw new Error(errorJson.error || `فشل الطلب من الخادم (HTTP ${response.status}).`);
+                } catch {
+                    throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${responseText}`);
+                }
+            }
+            
+            const result = JSON.parse(responseText);
+            if (result.success === false || result.error) {
+                throw new Error(result.error || `فشل في ${isEdit ? 'تحديث' : 'إضافة'} المستخدم.`);
+            }
+            
+            await fetchUsers();
+            handleCloseAddEditModal();
+
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
+            setSaveError(errorMessage);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    const siteRoot = API_BASE_URL.replace('/api/', '/');
+    const isExternalUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://');
+
+    const getAvatarUrl = (dbUrl: string | null | undefined): string => {
+        if (!dbUrl) {
+            return DEFAULT_PLACEHOLDER_IMAGE;
+        }
+        if (isExternalUrl(dbUrl)) {
+            return dbUrl;
+        }
+        return `${siteRoot}${dbUrl}`;
+    };
 
     return (
         <>
@@ -135,6 +199,7 @@ const UserManagement: React.FC = () => {
                         </button>
                     </div>
                 </div>
+                 {error && <div className='bg-red-50 border-red-400 text-red-800 border-l-4 p-4 mb-6 text-sm' role="alert">{error}</div>}
                 <div className="overflow-x-auto">
                     <table className="w-full text-right text-sm">
                         <thead>
@@ -146,12 +211,16 @@ const UserManagement: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="text-gray-700">
-                            {paginatedUsers.length > 0 ? (
+                             {isLoading ? (
+                                <tr>
+                                    <td colSpan={4} className="text-center py-8 text-gray-500">جاري تحميل المستخدمين...</td>
+                                </tr>
+                            ) : paginatedUsers.length > 0 ? (
                                 paginatedUsers.map((user) => (
                                     <tr key={user.id} className="border-b hover:bg-gray-50 transition-colors">
                                         <td className="p-3">
                                             <div className="flex items-center">
-                                                <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full object-cover ml-4" />
+                                                <img src={getAvatarUrl(user.avatar)} alt={user.name} className="w-10 h-10 rounded-full object-cover ml-4" />
                                                 <div>
                                                     <p className="font-semibold text-gray-800">{user.name}</p>
                                                     <p className="text-xs text-gray-500">{user.email}</p>
@@ -191,7 +260,7 @@ const UserManagement: React.FC = () => {
                         >
                             السابق
                         </button>
-                        <span className="text-sm text-gray-600">
+                         <span className="text-sm text-gray-600">
                             صفحة {currentPage} من {totalPages}
                         </span>
                         <button
@@ -211,11 +280,13 @@ const UserManagement: React.FC = () => {
                 title="تأكيد حذف المستخدم"
                 message={`هل أنت متأكد من رغبتك في حذف المستخدم "${userToDelete?.name}"؟ لا يمكن التراجع عن هذا الإجراء.`}
             />
-            <AddUserModal 
+            <AddUserModal
                 isOpen={isAddEditModalOpen}
                 onClose={handleCloseAddEditModal}
                 onSave={handleSaveUser}
                 userToEdit={userToEdit}
+                isSaving={isSaving}
+                error={saveError}
             />
         </>
     );
