@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
-import { formatCurrencySAR } from '../../utils/formatters';
+import { formatCurrency } from '../../utils/formatters';
 import AddProductModal from './AddProductModal';
 import ConfirmationModal from '../shared/ConfirmationModal';
 import { API_BASE_URL } from '../../services/api';
+import { useI18n } from '../../i18n/I18nProvider';
 
 // A generic, embedded SVG placeholder for products without an image.
 const DEFAULT_PLACEHOLDER_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NkZTVmYSI+PHBhdGggZD0iTTE5IDNINWMtMS4xIDAtMiAuOS0yIDJ2MTRjMCAxLjEuOSAyIDIgMmgxNGMxLjEgMCAyLS45IDItMlY1YzAtMS4xLS45LTItMi0yem0wIDE2SDVWNWgxNHYxNHptLTUuMDQtNi43MWwtMi43NSAyLjc1bC0yLjE3LTIuMTdMMTYuMTcgMTRMOC40MyA2LjI2TDUgOS42OVYxOUgxOVYxMC41bC0yLjUtMi41eiIvPjwvc3ZnPg==';
 
 
 const ProductManagement: React.FC = () => {
+    const { t } = useI18n();
     const [products, setProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<React.ReactNode | null>(null);
@@ -28,7 +30,7 @@ const ProductManagement: React.FC = () => {
     const fetchProducts = async () => {
         setIsLoading(true);
         setError(null);
-        let responseText = ''; // Variable to hold the raw response text
+        let responseText = '';
         try {
             const response = await fetch(`${API_BASE_URL}products.php`, {
                 cache: 'no-cache',
@@ -280,14 +282,14 @@ const ProductManagement: React.FC = () => {
             <div className="bg-white p-6 rounded-lg shadow-md w-full">
                  <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
                     <div className="w-full sm:w-auto">
-                        <h2 className="text-xl font-bold text-gray-800">إدارة المنتجات</h2>
-                        <p className="text-sm text-gray-500 mt-1">إضافة وتعديل المنتجات والخدمات في النظام.</p>
+                        <h2 className="text-xl font-bold text-gray-800">{t('settings.products.title')}</h2>
+                        <p className="text-sm text-gray-500 mt-1">{t('settings.products.description')}</p>
                     </div>
                     <div className="flex items-center gap-4 w-full sm:w-auto">
                         <div className="relative w-full sm:w-64">
                             <input
                                 type="text"
-                                placeholder="بحث بالاسم, الوصف..."
+                                placeholder={t('settings.products.searchPlaceholder')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
@@ -302,7 +304,7 @@ const ProductManagement: React.FC = () => {
                             onClick={handleOpenAddModal}
                             className="flex-shrink-0 flex items-center bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-px text-sm">
                             <Icons.PlusIcon className="w-5 h-5 ml-2" />
-                            <span>إضافة منتج</span>
+                            <span>{t('settings.products.add')}</span>
                         </button>
                     </div>
                 </div>
@@ -317,12 +319,12 @@ const ProductManagement: React.FC = () => {
                     <table className="w-full text-right text-sm">
                         <thead>
                             <tr className="bg-gray-50 border-b text-gray-600 uppercase text-xs">
-                                <th className="p-3 font-semibold text-right">الصورة</th>
-                                <th className="p-3 font-semibold text-right">اسم المنتج</th>
-                                <th className="p-3 font-semibold text-right hidden lg:table-cell">الوصف</th>
-                                <th className="p-3 font-semibold text-right">م. سعر الشراء</th>
-                                <th className="p-3 font-semibold text-right">م. سعر البيع</th>
-                                <th className="p-3 font-semibold text-center">إجراءات</th>
+                                <th className="p-3 font-semibold text-right">{t('settings.products.table.image')}</th>
+                                <th className="p-3 font-semibold text-right">{t('settings.products.table.name')}</th>
+                                <th className="p-3 font-semibold text-right hidden lg:table-cell">{t('settings.products.table.description')}</th>
+                                <th className="p-3 font-semibold text-right">{t('settings.products.table.purchasePrice')}</th>
+                                <th className="p-3 font-semibold text-right">{t('settings.products.table.salePrice')}</th>
+                                <th className="p-3 font-semibold text-center">{t('common.actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="text-gray-700">
@@ -334,7 +336,7 @@ const ProductManagement: React.FC = () => {
                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg>
-                                            جاري تحميل البيانات...
+                                            {t('common.loading')}
                                         </div>
                                     </td>
                                 </tr>
@@ -350,8 +352,8 @@ const ProductManagement: React.FC = () => {
                                         <td className="p-3 hidden lg:table-cell align-middle max-w-sm">
                                             <p className="truncate text-gray-600">{product.description || '-'}</p>
                                         </td>
-                                        <td className="p-3 align-middle">{formatCurrencySAR(product.averagePurchasePrice)}</td>
-                                        <td className="p-3 align-middle">{formatCurrencySAR(product.averageSalePrice)}</td>
+                                        <td className="p-3 align-middle">{formatCurrency(product.averagePurchasePrice, 'ر.س')}</td>
+                                        <td className="p-3 align-middle">{formatCurrency(product.averageSalePrice, 'ر.س')}</td>
 
                                         <td className="p-3 align-middle">
                                             <div className="flex items-center justify-center space-x-2 space-x-reverse">
@@ -364,7 +366,7 @@ const ProductManagement: React.FC = () => {
                             ) : (
                                 <tr>
                                     <td colSpan={6} className="text-center py-8 text-gray-500">
-                                        {error ? 'لا يمكن عرض البيانات حالياً.' : 'لا يوجد منتجات في قاعدة البيانات. يمكنك إضافة منتج جديد.'}
+                                        {error ? t('listPage.noDataApiError') : t('settings.products.notFound')}
                                     </td>
                                 </tr>
                             )}
@@ -378,17 +380,17 @@ const ProductManagement: React.FC = () => {
                             disabled={currentPage === 1}
                             className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                         >
-                            السابق
+                            {t('common.previous')}
                         </button>
                         <span className="text-sm text-gray-600">
-                            صفحة {currentPage} من {totalPages}
+                            {t('common.page')} {currentPage} {t('common.of')} {totalPages}
                         </span>
                         <button
                             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                             disabled={currentPage === totalPages}
                             className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                         >
-                            التالي
+                            {t('common.next')}
                         </button>
                     </div>
                 )}
@@ -405,8 +407,8 @@ const ProductManagement: React.FC = () => {
                 isOpen={isDeleteModalOpen}
                 onClose={handleCloseDeleteModal}
                 onConfirm={handleDeleteProduct}
-                title="تأكيد حذف المنتج"
-                message={`هل أنت متأكد من رغبتك في حذف منتج "${productToDelete?.name}"؟ لا يمكن التراجع عن هذا الإجراء.`}
+                title={t('settings.products.delete.title')}
+                message={t('settings.products.delete.message', { name: productToDelete?.name || '' })}
             />
         </>
     );

@@ -25,20 +25,26 @@ import Login from './components/auth/Login';
 import ServerTest from './components/shared/ServerTest';
 import CreateReceipt from './components/financials/CreateReceipt';
 import CreatePaymentVoucher from './components/financials/CreatePaymentVoucher';
+import { useI18n } from './i18n/I18nProvider';
 
 type Route = {
   page: string;
   id?: string;
 }
 
-const PlaceholderPage: React.FC<{title: string}> = ({title}) => (
-    <div className="p-4 sm:p-6 lg:p-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">{title}</h1>
-        <p className="text-gray-500">هذه الصفحة قيد الإنشاء.</p>
-    </div>
-);
+const PlaceholderPage: React.FC<{title: string}> = ({title}) => {
+    const { t } = useI18n();
+    return (
+        <div className="p-4 sm:p-6 lg:p-8">
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">{title}</h1>
+            <p className="text-gray-500">{t('common.pageUnderConstruction')}</p>
+        </div>
+    );
+};
+
 
 const App: React.FC = () => {
+  const { direction, t } = useI18n();
   const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('isLoggedIn') === 'true');
   const [route, setRoute] = useState<Route>({ page: 'dashboard' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -117,7 +123,7 @@ const App: React.FC = () => {
       case 'supplierAccountStatement':
         return route.id ? <SupplierAccountStatement supplierId={route.id} onBack={() => handleNavigate('suppliers')} /> : <Suppliers onNavigate={handleNavigate} />;
       case 'reports':
-        return <PlaceholderPage title="التقارير" />;
+        return <PlaceholderPage title={t('sidebar.reports')} />;
       case 'settings':
         return <SettingsPage />;
       case 'serverTest':
@@ -152,9 +158,11 @@ const App: React.FC = () => {
   if (!isAuthenticated) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
+  
+  const contentMarginClass = direction === 'rtl' ? 'lg:mr-64' : 'lg:ml-64';
 
   return (
-    <div className="bg-gray-100 min-h-screen" style={{ direction: 'rtl' }}>
+    <div className="bg-gray-100 min-h-screen">
       <Sidebar onNavigate={handleNavigate} currentPage={route.page} isSidebarOpen={isSidebarOpen} onToggleSidebar={handleToggleSidebar} />
       
       {/* Animated backdrop */}
@@ -164,7 +172,7 @@ const App: React.FC = () => {
         aria-hidden={!isSidebarOpen}
       ></div>
 
-      <div className="flex-1 flex flex-col lg:mr-64 transition-all duration-300">
+      <div className={`flex-1 flex flex-col ${contentMarginClass} transition-all duration-300`}>
         {!isDetailPage && <Header onToggleSidebar={handleToggleSidebar} />}
         <main 
             key={route.page + (route.id || '')} 

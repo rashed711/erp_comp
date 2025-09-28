@@ -12,30 +12,44 @@ export const toArabic = (input: string | number): string => {
 };
 
 /**
- * Formats a number as a Saudi Riyal currency value, with English numerals.
+ * Formats a number as a currency value with a given symbol.
  * @param amount The number to format.
- * @param showSymbol Whether to show the "ريال" currency symbol. Defaults to true.
+ * @param currencySymbol The currency symbol to append (e.g., 'ج.م', 'ر.س', '$').
+ * @param showSymbol Whether to show the currency symbol. Defaults to true.
  * @returns A formatted currency string.
  */
-export const formatCurrencySAR = (amount: number, showSymbol: boolean = true): string => {
-  const formattedNumber = new Intl.NumberFormat('en-US', { // Use 'en-US' for consistent comma separation
+export const formatCurrency = (amount: number, currencySymbol: string, showSymbol: boolean = true): string => {
+  const formattedNumber = new Intl.NumberFormat('en-US', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
 
-  return showSymbol ? `${formattedNumber} ريال` : formattedNumber;
+  return showSymbol ? `${formattedNumber} ${currencySymbol}` : formattedNumber;
 };
+
 
 /**
  * Extracts the time part from a datetime string (e.g., "2024-07-20 09:15 ص").
  * @param dateTimeString The full datetime string.
- * @returns The time part of the string (e.g., "09:15 ص").
+ * @param lang The current language ('ar' or 'en') for AM/PM localization.
+ * @returns The time part of the string (e.g., "09:15 ص" or "09:15 AM").
  */
-export const extractTime = (dateTimeString: string): string => {
+export const extractTime = (dateTimeString: string, lang: 'ar' | 'en' = 'ar'): string => {
   if (!dateTimeString) return '';
   const parts = dateTimeString.split(' ');
   if (parts.length > 1) {
-    return parts.slice(1).join(' ');
+    let timePart = parts[1]; // HH:MM
+    let ampmPart = parts.length > 2 ? parts[2].toLowerCase() : ''; // ص or م
+    
+    if (lang === 'en') {
+        if (ampmPart.includes('ص')) ampmPart = 'AM';
+        else if (ampmPart.includes('م')) ampmPart = 'PM';
+    } else {
+        if (ampmPart.includes('am')) ampmPart = 'ص';
+        else if (ampmPart.includes('pm')) ampmPart = 'م';
+    }
+    
+    return `${timePart} ${ampmPart}`.trim();
   }
   return '';
 };
@@ -48,4 +62,14 @@ export const extractTime = (dateTimeString: string): string => {
 export const extractDate = (dateTimeString: string): string => {
   if (!dateTimeString) return '';
   return dateTimeString.split(' ')[0];
+};
+
+/**
+ * Formats a number as a currency value in SAR.
+ * @param amount The number to format.
+ * @param showSymbol Whether to show the currency symbol. Defaults to true.
+ * @returns A formatted currency string in SAR.
+ */
+export const formatCurrencySAR = (amount: number, showSymbol: boolean = true): string => {
+    return formatCurrency(amount, 'ر.س', showSymbol);
 };

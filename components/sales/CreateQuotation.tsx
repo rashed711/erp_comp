@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Customer, Product, DocumentItem, QuotationSettingsConfig, Quotation, ContactInfo } from '../../types';
-import { getQuotationSettings, getCustomers as getMockCustomers, getProducts as getMockProducts } from '../../services/mockApi';
+import { Customer, Product, DocumentItem, QuotationSettingsConfig, Quotation, ContactInfo, CurrencySettingsConfig, Currency } from '../../types';
+import { getQuotationSettings, getCustomers as getMockCustomers, getProducts as getMockProducts, getCurrencySettings } from '../../services/mockApi';
 import * as Icons from '../icons/ModuleIcons';
-import { formatCurrencySAR } from '../../utils/formatters';
+import { formatCurrency } from '../../utils/formatters';
 import { API_BASE_URL } from '../../services/api';
 
 interface CreateQuotationProps {
@@ -17,6 +17,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [settings, setSettings] = useState<QuotationSettingsConfig | null>(null);
+    const [currencySettings, setCurrencySettings] = useState<CurrencySettingsConfig | null>(null);
 
     // Form states
     const [customerInput, setCustomerInput] = useState('');
@@ -34,12 +35,13 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
     ]);
     const [notes, setNotes] = useState('');
     const [terms, setTerms] = useState('');
+    const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null);
     
     // Calculation states
     const [discountValue, setDiscountValue] = useState(0);
     const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
     const [isTaxable, setIsTaxable] = useState(true);
-    const TAX_RATE = 15;
+    const taxRate = useMemo(() => selectedCurrency?.taxRate ?? 0, [selectedCurrency]);
 
     // Loading & Error states
     const [isLoading, setIsLoading] = useState(true);
@@ -95,6 +97,9 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                 setSettings(settingsData);
                 if (settingsData) setTerms(settingsData.defaultTerms);
 
+                const currencySettingsData = getCurrencySettings();
+                setCurrencySettings(currencySettingsData);
+
                 if (isEditMode && quotationId) {
                     if (fetchErrors.length > 0) {
                         throw new Error("لا يمكن تعديل عرض السعر لأن بيانات العملاء أو المنتجات فشلت في التحميل من الخادم.");
@@ -126,18 +131,19 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                         setDiscountValue(Number(quotationToEdit.discount_value));
                         setDiscountType(quotationToEdit.discount_type);
                         setIsTaxable(Number(quotationToEdit.tax_amount) > 0);
+                        const currency = currencySettingsData.currencies.find(c => c.code === quotationToEdit.currency_code);
+                        setSelectedCurrency(currency || null);
                     } else {
                         throw new Error('لم يتم العثور على عرض السعر.');
                     }
+                } else {
+                    const defaultCurrency = currencySettingsData.currencies.find(c => c.code === currencySettingsData.defaultCurrency);
+                    setSelectedCurrency(defaultCurrency || null);
                 }
-
             } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
-                console.error("Error during initial load:", err);
-                setError({
-                    message: `خطأ في تحميل البيانات: ${errorMessage}.`,
-                    isWarning: false
-                });
+                 const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
+                 console.error("Error during initial load:", err);
+                 setError({ message: `خطأ: ${errorMessage}`, isWarning: false });
             } finally {
                 setIsLoading(false);
             }
@@ -149,6 +155,18 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
         const matchedCustomer = customers.find(c => c.name === customerInput);
         setSelectedCustomer(matchedCustomer || null);
     }, [customerInput, customers]);
+
+    const handleCustomerNameBlur = () => {
+        if (!customerInput) {
+            setSelectedCustomer(null);
+            return;
+        }
+        const isValidCustomer = customers.some(c => c.name === customerInput);
+        if (!isValidCustomer) {
+            setCustomerInput('');
+            setSelectedCustomer(null);
+        }
+    };
 
     const handleAddItem = () => {
         const newItem: DocumentItem = {
@@ -172,18 +190,15 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             return prevItems.map(item => {
                 if (item.id === id) {
                     const updatedItem = { ...item, [field]: value };
-
                     if (field === 'productName') {
                         const selectedProduct = products.find(p => p.name === value);
                         if (selectedProduct) {
                             updatedItem.productId = selectedProduct.id;
                             updatedItem.description = selectedProduct.description || selectedProduct.name;
-                            // FIX: Changed 'price' to 'averageSalePrice' to match the Product type.
                             updatedItem.unitPrice = selectedProduct.averageSalePrice;
                             updatedItem.unit = selectedProduct.unit || 'No';
                         }
                     }
-
                     if (['quantity', 'unitPrice', 'productName'].includes(field)) {
                         updatedItem.total = (Number(updatedItem.quantity) || 0) * (Number(updatedItem.unitPrice) || 0);
                     }
@@ -193,16 +208,17 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             });
         });
     };
-
+    
     const handleProductNameBlur = (id: number) => {
         const item = items.find(i => i.id === id);
         if (!item || !item.productName) return;
+        
         const isValidProduct = products.some(p => p.name === item.productName);
         if (!isValidProduct) {
             setItems(currentItems => currentItems.map(currentItem => currentItem.id === id ? { ...currentItem, productId: undefined, productName: '', description: '', unitPrice: 0, unit: '', total: 0 } : currentItem));
         }
     };
-    
+
     const { subtotal, discountAmount, taxAmount, total } = useMemo(() => {
         const subtotal = items.reduce((acc, item) => acc + item.total, 0);
         let calculatedDiscount = 0;
@@ -212,11 +228,11 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             calculatedDiscount = subtotal * (discountValue / 100);
         }
         const totalAfterDiscount = subtotal - calculatedDiscount;
-        const calculatedTax = isTaxable ? totalAfterDiscount * (TAX_RATE / 100) : 0;
+        const calculatedTax = isTaxable ? totalAfterDiscount * (taxRate / 100) : 0;
         const grandTotal = totalAfterDiscount + calculatedTax;
         return { subtotal, discountAmount: calculatedDiscount, taxAmount: calculatedTax, total: grandTotal };
-    }, [items, discountValue, discountType, isTaxable]);
-    
+    }, [items, discountValue, discountType, isTaxable, taxRate]);
+
     const handleSave = async () => {
         if (error?.isWarning) {
             alert("لا يمكن الحفظ أثناء العمل في وضع عدم الاتصال. يتم عرض بيانات تجريبية فقط.");
@@ -227,17 +243,16 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             return;
         }
         const validItems = items.filter(item => item.productName && item.productName.trim() !== '' && item.productId);
-
         if (validItems.length === 0) {
             alert('لا يمكن حفظ عرض سعر فارغ. الرجاء إضافة بند واحد صحيح على الأقل.');
             return;
         }
 
         setIsSaving(true);
-        // Clear previous save errors
-        if(error && !error.isWarning) setError(null);
+        if (error && !error.isWarning) setError(null);
         
         const payload = {
+            id: isEditMode ? quotationId : undefined,
             customer_id: selectedCustomer.id,
             contact_person: contactPerson,
             project_name: projectName,
@@ -249,18 +264,18 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             discount_type: discountType,
             discount_value: discountValue,
             discount_amount: discountAmount,
-            tax_rate: isTaxable ? TAX_RATE : 0,
+            tax_rate: isTaxable ? taxRate : 0,
             tax_amount: taxAmount,
             total: total,
+            currency_code: selectedCurrency?.code,
+            currency_symbol: selectedCurrency?.symbol,
             items: validItems.map(item => ({
                 product_id: item.productId,
                 description: item.description,
                 quantity: item.quantity,
                 unit_price: item.unitPrice,
                 total: item.total
-            })),
-            id: isEditMode ? quotationId : undefined,
-            status: isEditMode ? undefined : 'draft' // Send status only on creation
+            }))
         };
         
         try {
@@ -270,14 +285,11 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                 body: JSON.stringify(payload),
                 cache: 'no-cache',
             });
-            
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${errorText}`);
             }
-
             const result = await response.json();
-
             if (result.success) {
                 alert(isEditMode ? "تم تحديث عرض السعر بنجاح!" : "تم إنشاء عرض السعر بنجاح!");
                 onBack();
@@ -291,8 +303,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             setIsSaving(false);
         }
     };
-
-
+    
     if (isLoading) {
         return (
             <div className="flex flex-col justify-center items-center h-screen bg-gray-100 p-4">
@@ -327,7 +338,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                       </button>
                       <div>
                           <h1 className="text-lg sm:text-xl font-bold text-gray-800">{isEditMode ? `تعديل عرض السعر #${quotationId}` : 'إنشاء عرض سعر جديد'}</h1>
-                          <p className="text-xs sm:text-sm text-gray-500">{isEditMode ? 'قم بتحديث التفاصيل أدناه' : 'املأ التفاصيل أدناه لحفظ عرض السعر'}</p>
+                          <p className="text-xs sm:text-sm text-gray-500">املأ التفاصيل أدناه لحفظ عرض السعر</p>
                       </div>
                   </div>
                   <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -340,7 +351,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                          ) : (isEditMode ? 'حفظ التعديلات' : 'حفظ')}
+                          ) : 'حفظ'}
                       </button>
                   </div>
               </div>
@@ -348,44 +359,47 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
   
           <main className="p-4 sm:p-6">
               <div className="max-w-6xl mx-auto space-y-6">
-                  
                   {error && (
                       <div className={`p-4 mb-6 rounded-md ${error.isWarning ? 'bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800' : 'bg-red-100 border-l-4 border-red-400 text-red-700'}`} role="alert">
                           {error.message}
                       </div>
                   )}
-
-                  {/* Customer and Details Section */}
+                  
                   <div className="bg-white p-6 rounded-lg shadow-md">
-                      <h2 className="text-xl font-bold text-gray-800 border-b pb-4 mb-6">تفاصيل العرض</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <h2 className="text-xl font-bold text-gray-800 border-b pb-4 mb-6">تفاصيل عرض السعر</h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           <div>
                               <label htmlFor="customer" className="block text-sm font-medium text-gray-700 mb-2">العميل*</label>
-                              <input id="customer" type="text" list="customers-list" value={customerInput} onChange={e => setCustomerInput(e.target.value)} placeholder="اختر أو اكتب اسم العميل" className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                              <input id="customer" type="text" list="customers-list" value={customerInput} onChange={e => setCustomerInput(e.target.value)} onBlur={handleCustomerNameBlur} placeholder="اختر أو اكتب اسم العميل" className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500" />
                               <datalist id="customers-list">
                                   {customers.map(c => <option key={c.id} value={c.name} />)}
                               </datalist>
                           </div>
-                           <div>
+                          <div>
+                              <label htmlFor="contactPerson" className="block text-sm font-medium text-gray-700 mb-2">اسم المسؤول</label>
+                              <input type="text" id="contactPerson" value={contactPerson} onChange={e => setContactPerson(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md" />
+                          </div>
+                          <div>
+                              <label htmlFor="projectName" className="block text-sm font-medium text-gray-700 mb-2">المشروع</label>
+                              <input type="text" id="projectName" value={projectName} onChange={e => setProjectName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md" />
+                          </div>
+                          <div>
                               <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">التاريخ</label>
                               <input type="date" id="date" value={date} onChange={e => setDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"/>
-                           </div>
-                           <div>
-                              <label htmlFor="contactPerson" className="block text-sm font-medium text-gray-700 mb-2">اسم المسؤول</label>
-                              <input type="text" id="contactPerson" value={contactPerson} onChange={e => setContactPerson(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"/>
-                           </div>
-                           <div>
-                              <label htmlFor="projectName" className="block text-sm font-medium text-gray-700 mb-2">المشروع</label>
-                              <input type="text" id="projectName" value={projectName} onChange={e => setProjectName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"/>
-                           </div>
-                           <div className="md:col-span-2">
-                              <label htmlFor="expiryDate" className="block text-sm font-medium text-gray-700 mb-2">تاريخ انتهاء الصلاحية</label>
-                              <input type="date" id="expiryDate" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="w-full md:w-1/2 p-2 border border-gray-300 rounded-md"/>
-                           </div>
+                          </div>
+                          <div>
+                              <label htmlFor="expiryDate" className="block text-sm font-medium text-gray-700 mb-2">تاريخ الانتهاء</label>
+                              <input type="date" id="expiryDate" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"/>
+                          </div>
+                          <div>
+                              <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-2">العملة</label>
+                              <select id="currency" value={selectedCurrency?.code || ''} onChange={e => setSelectedCurrency(currencySettings?.currencies.find(c => c.code === e.target.value) || null)} className="w-full p-2 border border-gray-300 rounded-md bg-white">
+                                  {currencySettings?.currencies.map(c => <option key={c.code} value={c.code}>{c.name} ({c.symbol})</option>)}
+                              </select>
+                          </div>
                       </div>
                   </div>
 
-                  {/* Items Section */}
                   <div className="bg-white p-6 rounded-lg shadow-md">
                         <h2 className="text-xl font-bold text-gray-800 border-b pb-4 mb-6">البنود</h2>
                         <div className="overflow-x-auto">
@@ -407,57 +421,37 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                                             <td className="p-2">
                                                 <input list="products-list" placeholder="اختر منتج" className="w-full p-2 border border-gray-200 rounded-md" value={item.productName || ''} onChange={(e) => handleItemChange(item.id, 'productName', e.target.value)} onBlur={() => handleProductNameBlur(item.id)} />
                                             </td>
-                                            <td className="p-2">
-                                                <input placeholder="وصف البند" className="w-full p-2 border border-gray-200 rounded-md" value={item.description} onChange={(e) => handleItemChange(item.id, 'description', e.target.value)} />
-                                            </td>
+                                            <td className="p-2"><input placeholder="وصف البند" className="w-full p-2 border border-gray-200 rounded-md" value={item.description} onChange={(e) => handleItemChange(item.id, 'description', e.target.value)} /></td>
                                             <td className="p-2 text-center align-middle"><span className="text-sm text-gray-600">{item.unit || '-'}</span></td>
                                             <td className="p-2"><input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.id, 'quantity', Number(e.target.value))} className="w-24 p-2 border border-gray-200 rounded-md"/></td>
                                             <td className="p-2"><input type="number" step="0.01" value={item.unitPrice} onChange={(e) => handleItemChange(item.id, 'unitPrice', Number(e.target.value))} className="w-32 p-2 border border-gray-200 rounded-md"/></td>
-                                            <td className="p-2 text-left font-medium align-middle">{formatCurrencySAR(item.total, false)}</td>
-                                            <td className="p-2 text-center align-middle">
-                                                <button onClick={() => handleRemoveItem(item.id)} className="text-gray-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors">
-                                                    <Icons.TrashIcon className="w-5 h-5"/>
-                                                </button>
-                                            </td>
+                                            <td className="p-2 text-left font-medium align-middle">{formatCurrency(item.total, selectedCurrency?.symbol || 'ر.س', false)}</td>
+                                            <td className="p-2 text-center align-middle"><button onClick={() => handleRemoveItem(item.id)} className="text-gray-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors"><Icons.TrashIcon className="w-5 h-5"/></button></td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
-                            <datalist id="products-list">
-                                {products.map(p => <option key={p.id} value={p.name} />)}
-                            </datalist>
+                            <datalist id="products-list">{products.map(p => <option key={p.id} value={p.name} />)}</datalist>
                         </div>
-                        
-                        <div className="mt-6">
-                            <button onClick={handleAddItem} className="text-sm text-emerald-600 font-semibold flex items-center gap-2 hover:text-emerald-800 p-2 rounded-lg hover:bg-emerald-50 transition-colors">
-                                <Icons.PlusIcon className="w-5 h-5" />
-                                أضف بند جديد
-                            </button>
-                        </div>
+                        <div className="mt-6"><button onClick={handleAddItem} className="text-sm text-emerald-600 font-semibold flex items-center gap-2 hover:text-emerald-800 p-2 rounded-lg hover:bg-emerald-50 transition-colors"><Icons.PlusIcon className="w-5 h-5" />أضف بند جديد</button></div>
                     </div>
   
-                  {/* Totals and Notes Section */}
                   <div className="bg-white p-6 rounded-lg shadow-md">
                       <div className="flex flex-col-reverse lg:flex-row justify-between gap-8">
                           <div className="w-full lg:w-1/2 space-y-4">
-                              <div>
-                                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">ملاحظات</label>
-                                  <textarea id="notes" rows={4} value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"></textarea>
-                              </div>
+                              <div><label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">ملاحظات</label><textarea id="notes" rows={2} value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"></textarea></div>
+                              <div><label htmlFor="terms" className="block text-sm font-medium text-gray-700 mb-2">الشروط والأحكام</label><textarea id="terms" rows={4} value={terms} onChange={e => setTerms(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"></textarea></div>
                           </div>
                           <div className="w-full lg:w-1/2">
                               <div className="bg-gray-50 p-6 rounded-lg border space-y-4">
                                   <h3 className="text-lg font-bold text-gray-800">ملخص الحساب</h3>
-                                  <div className="flex justify-between items-center">
-                                      <span className="text-gray-600">المجموع الفرعي</span>
-                                      <span className="font-medium text-gray-800">{formatCurrencySAR(subtotal, false)}</span>
-                                  </div>
+                                  <div className="flex justify-between items-center"><span className="text-gray-600">المجموع الفرعي</span><span className="font-medium text-gray-800">{formatCurrency(subtotal, selectedCurrency?.symbol || 'ر.س', false)}</span></div>
                                   <div className="flex justify-between items-center">
                                       <span className="text-gray-600">الخصم</span>
                                       <div className="flex items-center gap-1">
                                           <input type="number" id="discount" value={discountValue} onChange={e => setDiscountValue(Number(e.target.value))} className="w-24 p-2 border border-gray-300 rounded-md text-left"/>
                                           <select value={discountType} onChange={e => setDiscountType(e.target.value as 'fixed' | 'percentage')} className="p-2 border border-gray-300 rounded-md bg-white text-sm">
-                                              <option value="fixed">ريال</option>
+                                              <option value="fixed">{selectedCurrency?.symbol || 'ر.س'}</option>
                                               <option value="percentage">%</option>
                                           </select>
                                       </div>
@@ -465,19 +459,18 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                                    <div className="flex justify-between items-center">
                                       <div className="flex items-center">
                                           <input type="checkbox" id="tax-toggle" checked={isTaxable} onChange={e => setIsTaxable(e.target.checked)} className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"/>
-                                          <label htmlFor="tax-toggle" className="mr-2 text-gray-600 cursor-pointer">الضريبة ({TAX_RATE}%)</label>
+                                          <label htmlFor="tax-toggle" className="mr-2 text-gray-600 cursor-pointer">الضريبة ({taxRate}%)</label>
                                       </div>
-                                      <span className="font-medium text-gray-800">{formatCurrencySAR(taxAmount, false)}</span>
+                                      <span className="font-medium text-gray-800">{formatCurrency(taxAmount, selectedCurrency?.symbol || 'ر.س', false)}</span>
                                   </div>
                                   <div className="flex justify-between items-center pt-4 border-t mt-2">
                                       <span className="font-bold text-gray-900 text-lg">الإجمالي الكلي</span>
-                                      <span className="font-bold text-emerald-600 text-xl">{formatCurrencySAR(total, true)}</span>
+                                      <span className="font-bold text-emerald-600 text-xl">{formatCurrency(total, selectedCurrency?.symbol || 'ر.س', true)}</span>
                                   </div>
                               </div>
                           </div>
                       </div>
                   </div>
-
               </div>
           </main>
       </div>

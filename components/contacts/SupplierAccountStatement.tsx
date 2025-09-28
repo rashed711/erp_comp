@@ -2,14 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { getSupplierAccountStatement, getSupplierAccountStatementSettings, getCompanySettings } from '../../services/mockApi';
 import { AccountStatement, AccountStatementSettingsConfig, AccountStatementFieldConfig, CompanySettingsConfig, AccountStatementEntry } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
-import { formatCurrencySAR } from '../../utils/formatters';
-
-declare global {
-    interface Window {
-        jspdf: any;
-        html2canvas: any;
-    }
-}
+import { formatCurrency } from '../../utils/formatters';
+import { usePdfGenerator } from '../../hooks/usePdfGenerator';
 
 interface SupplierAccountStatementProps {
     supplierId: string;
@@ -21,7 +15,11 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
     const [settings, setSettings] = useState<AccountStatementSettingsConfig | null>(null);
     const [companySettings, setCompanySettings] = useState<CompanySettingsConfig | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isProcessing, setIsProcessing] = useState(false);
+
+    const { downloadPdf, isProcessing } = usePdfGenerator({
+        elementId: 'printable-statement',
+        fileName: `Supplier-Statement-${statement?.contactId}`
+    });
 
     const [startDate, setStartDate] = useState<string>(() => {
         const today = new Date();
@@ -69,72 +67,6 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
         }
     }, [statement, startDate, endDate]);
     
-    const handleDownloadPdf = async () => {
-        setIsProcessing(true);
-        const { jsPDF } = window.jspdf;
-        const input = document.getElementById('printable-statement');
-        if (input) {
-            const footerElement = input.children[input.children.length - 1] as HTMLElement;
-            
-            const originalStyles = {
-                parent: {
-                    height: input.style.height,
-                    display: input.style.display,
-                    flexDirection: input.style.flexDirection,
-                    width: input.style.width,
-                    maxWidth: input.style.maxWidth,
-                    margin: input.style.margin,
-                },
-                footer: { marginTop: footerElement?.style.marginTop }
-            };
-
-            try {
-                const a4Ratio = 297 / 210;
-                const canvasWidth = 1200;
-                const canvasHeight = canvasWidth * a4Ratio;
-
-                input.style.height = `${canvasHeight}px`;
-                input.style.display = 'flex';
-                input.style.flexDirection = 'column';
-                input.style.width = `${canvasWidth}px`;
-                input.style.maxWidth = 'none';
-                input.style.margin = '0';
-                if (footerElement) footerElement.style.marginTop = 'auto';
-
-                const canvas = await window.html2canvas(input, {
-                    scale: 2,
-                    useCORS: true,
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    windowWidth: canvasWidth,
-                    windowHeight: canvasHeight,
-                });
-
-                const imgData = canvas.toDataURL('image/jpeg', 0.9);
-                const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = pdf.internal.pageSize.getHeight();
-
-                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'MEDIUM');
-                pdf.save(`Supplier-Statement-${statement?.contactId}.pdf`);
-            } catch (error) {
-                console.error("Error generating PDF:", error);
-                alert("حدث خطأ أثناء إنشاء ملف PDF.");
-            } finally {
-                input.style.height = originalStyles.parent.height;
-                input.style.display = originalStyles.parent.display;
-                input.style.flexDirection = originalStyles.parent.flexDirection;
-                input.style.width = originalStyles.parent.width;
-                input.style.maxWidth = originalStyles.parent.maxWidth;
-                input.style.margin = originalStyles.parent.margin;
-                if (footerElement) footerElement.style.marginTop = originalStyles.footer.marginTop;
-                setIsProcessing(false);
-            }
-        } else {
-             setIsProcessing(false);
-        }
-    };
-
     const findField = (key: AccountStatementFieldConfig['key']): AccountStatementFieldConfig | undefined => {
         return settings?.fields.find(f => f.key === key && f.isEnabled);
     };
@@ -179,7 +111,7 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                     return(
                          <div key={item.key} className={`bg-${item.color}-50 p-4 rounded-lg`}>
                             <p className={`text-sm text-${item.color}-600`}>{field?.label || item.label}</p>
-                            <p className={`text-lg font-bold text-${item.color}-800`}>{formatCurrencySAR(item.value)}</p>
+                            <p className={`text-lg font-bold text-${item.color}-800`}>{formatCurrency(item.value, statement.currency.symbol)}</p>
                         </div>
                     );
                 })}
@@ -227,7 +159,7 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                                  className="w-36 p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500"
                              />
                          </div>
-                         <button onClick={handleDownloadPdf} disabled={isProcessing} className="flex items-center gap-2 text-sm bg-emerald-600 text-white py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 hover:-translate-y-px disabled:bg-emerald-400">
+                         <button onClick={downloadPdf} disabled={isProcessing} className="flex items-center gap-2 text-sm bg-emerald-600 text-white py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 hover:-translate-y-px disabled:bg-emerald-400">
                            {isProcessing ? (
                             <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -292,9 +224,9 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                                         <td className="p-3">{entry.date}</td>
                                         <td className="p-3 text-emerald-600">{entry.transactionId}</td>
                                         <td className="p-3">{entry.description}</td>
-                                        <td className="p-3 text-center text-red-600">{entry.debit > 0 ? formatCurrencySAR(entry.debit, false) : '-'}</td>
-                                        <td className="p-3 text-center text-green-600">{entry.credit > 0 ? formatCurrencySAR(entry.credit, false) : '-'}</td>
-                                        <td className="p-3 text-left font-medium">{formatCurrencySAR(entry.balance, false)}</td>
+                                        <td className="p-3 text-center text-red-600">{entry.debit > 0 ? formatCurrency(entry.debit, statement.currency.symbol, false) : '-'}</td>
+                                        <td className="p-3 text-center text-green-600">{entry.credit > 0 ? formatCurrency(entry.credit, statement.currency.symbol, false) : '-'}</td>
+                                        <td className="p-3 text-left font-medium">{formatCurrency(entry.balance, statement.currency.symbol, false)}</td>
                                     </tr>
                                 ))}
                             </tbody>

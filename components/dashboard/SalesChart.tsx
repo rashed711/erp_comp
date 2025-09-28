@@ -1,23 +1,32 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { SalesData } from '../../types';
+import { useI18n } from '../../i18n/I18nProvider';
+import { TranslationKey } from '../../i18n/translations';
 
 interface SalesChartProps {
   data: SalesData[];
 }
 
 const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
+  const { t, direction } = useI18n();
+
+  const translatedData = data.map(item => ({
+    ...item,
+    month: t(item.month as TranslationKey)
+  }));
+
   return (
     <>
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">نظرة عامة على المبيعات والمشتريات</h2>
+      <h2 className="text-xl font-semibold text-gray-800 mb-4">{t('dashboard.chart.title')}</h2>
       <div style={{ width: '100%', height: 350 }}>
         <ResponsiveContainer>
           <BarChart
-            data={data}
+            data={translatedData}
             margin={{
               top: 5,
-              right: 20,
-              left: -20,
+              right: direction === 'ltr' ? 20 : 0,
+              left: direction === 'rtl' ? -20 : 0,
               bottom: 5,
             }}
             barGap={8}
@@ -32,7 +41,7 @@ const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
                 backgroundColor: '#fff',
                 border: '1px solid #e5e7eb',
                 borderRadius: '0.5rem',
-                direction: 'rtl',
+                direction: direction,
                 fontFamily: 'inherit'
               }}
               formatter={(value: number) => value.toLocaleString()}
@@ -42,8 +51,8 @@ const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
               iconSize={10}
               wrapperStyle={{ paddingTop: '20px' }}
             />
-            <Bar dataKey="sales" fill="#10b981" name="المبيعات" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="purchases" fill="#6ee7b7" name="المشتريات" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="sales" fill="#10b981" name={t('dashboard.chart.sales')} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="purchases" fill="#6ee7b7" name={t('dashboard.chart.purchases')} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -1,26 +1,26 @@
-import { Kpi, SalesData, SalesInvoice, Customer, Supplier, SupplierInvoice, Quotation, AccountStatement, Receipt, PaymentVoucher, User, Role, QuotationSettingsConfig, SalesInvoiceSettingsConfig, SupplierInvoiceSettingsConfig, ReceiptSettingsConfig, PaymentVoucherSettingsConfig, AccountStatementSettingsConfig, CompanySettingsConfig, Product, ContactInfo } from '../types';
+import { Kpi, SalesData, SalesInvoice, Customer, Supplier, SupplierInvoice, Quotation, AccountStatement, Receipt, PaymentVoucher, User, Role, QuotationSettingsConfig, SalesInvoiceSettingsConfig, SupplierInvoiceSettingsConfig, ReceiptSettingsConfig, PaymentVoucherSettingsConfig, AccountStatementSettingsConfig, CompanySettingsConfig, Product, ContactInfo, CurrencySettingsConfig } from '../types';
 
-export const getDashboardKpis = (): Kpi[] => {
+export const getDashboardKpis = (currencySymbol: string): Kpi[] => {
   return [
     {
       id: 1,
-      title: 'إجمالي المبيعات',
-      value: '750,000 ريال',
+      title: 'kpi.totalSales',
+      value: `${(750000).toLocaleString('en-US')} ${currencySymbol}`,
       change: { value: '12%', type: 'increase' },
       icon: 'ShoppingCartIcon',
       color: 'text-emerald-500'
     },
     {
       id: 2,
-      title: 'الأرباح الصافية',
-      value: '120,000 ريال',
+      title: 'kpi.netProfit',
+      value: `${(120000).toLocaleString('en-US')} ${currencySymbol}`,
       change: { value: '8%', type: 'increase' },
       icon: 'DollarSignIcon',
       color: 'text-green-500'
     },
     {
       id: 3,
-      title: 'عملاء جدد',
+      title: 'kpi.newCustomers',
       value: '250',
       change: { value: '5%', type: 'decrease' },
       icon: 'UsersIcon',
@@ -28,7 +28,7 @@ export const getDashboardKpis = (): Kpi[] => {
     },
     {
       id: 4,
-      title: 'المنتجات المباعة',
+      title: 'kpi.productsSold',
       value: '1,200',
       change: { value: '15%', type: 'increase' },
       icon: 'PackageIcon',
@@ -36,7 +36,7 @@ export const getDashboardKpis = (): Kpi[] => {
     },
     {
       id: 5,
-      title: 'طلبات قيد الإنتظار',
+      title: 'kpi.pendingOrders',
       value: '15',
       change: { value: '3%', type: 'increase' },
       icon: 'ClockIcon',
@@ -44,15 +44,15 @@ export const getDashboardKpis = (): Kpi[] => {
     },
     {
       id: 6,
-      title: 'قيمة المخزون',
-      value: '1,250,000 ريال',
+      title: 'kpi.inventoryValue',
+      value: `${(1250000).toLocaleString('en-US')} ${currencySymbol}`,
       change: { value: '2%', type: 'decrease' },
       icon: 'PackageIcon',
       color: 'text-orange-500'
     },
     {
       id: 7,
-      title: 'رضا العملاء',
+      title: 'kpi.customerSatisfaction',
       value: '92%',
       change: { value: '1.5%', type: 'increase' },
       icon: 'SmileIcon',
@@ -63,13 +63,13 @@ export const getDashboardKpis = (): Kpi[] => {
 
 export const getSalesData = (): SalesData[] => {
   return [
-    { month: 'يناير', sales: 4000, purchases: 2400 },
-    { month: 'فبراير', sales: 3000, purchases: 1398 },
-    { month: 'مارس', sales: 2000, purchases: 9800 },
-    { month: 'أبريل', sales: 2780, purchases: 3908 },
-    { month: 'مايو', sales: 1890, purchases: 4800 },
-    { month: 'يونيو', sales: 2390, purchases: 3800 },
-    { month: 'يوليو', sales: 3490, purchases: 4300 },
+    { month: 'month.jan', sales: 4000, purchases: 2400 },
+    { month: 'month.feb', sales: 3000, purchases: 1398 },
+    { month: 'month.mar', sales: 2000, purchases: 9800 },
+    { month: 'month.apr', sales: 2780, purchases: 3908 },
+    { month: 'month.may', sales: 1890, purchases: 4800 },
+    { month: 'month.jun', sales: 2390, purchases: 3800 },
+    { month: 'month.jul', sales: 3490, purchases: 4300 },
   ];
 };
 
@@ -96,11 +96,16 @@ const suppliersData: Supplier[] = [
 ];
 
 const salesInvoices: SalesInvoice[] = [
-  { id: 'INV-2024-001', customerId: 'CUST-006', customer: { name: 'شركة المشاريع الحديثة', address: '123 شارع الملك فهد، الرياض', email: 'contact@modern.sa', phone: '011-234-5678' }, date: '2024-07-20', dueDate: '2024-08-19', total: 17250, status: 'unpaid', createdAt: '2024-07-20 09:15 ص', items: [{id: 1, description: 'استشارات إدارية', quantity: 15, unitPrice: 1000, total: 15000}], subtotal: 15000, tax: {rate: 15, amount: 2250}, discount: {type: 'fixed', value: 0, amount: 0}, terms: 'الدفع خلال 30 يوم.' },
-  { id: 'INV-2024-002', customerId: 'CUST-007', customer: { name: 'مؤسسة البناء المتكامل', address: '456 طريق الملك عبدالله، جدة', email: 'info@binaa.sa', phone: '012-345-6789' }, date: '2024-07-18', dueDate: '2024-07-18', total: 8500, status: 'paid', createdAt: '2024-07-18 11:30 ص', items: [{id: 1, description: 'مواد بناء متنوعة', quantity: 1, unitPrice: 8500, total: 8500}], subtotal: 8500, tax: {rate: 0, amount: 0}, discount: {type: 'fixed', value: 0, amount: 0} },
-  { id: 'INV-2024-003', customerId: 'CUST-008', customer: { name: 'متجر التكنولوجيا الأول', address: '789 برج المملكة، الرياض', email: 'sales@techone.com', phone: '011-987-6543' }, date: '2024-07-15', dueDate: '2024-07-30', total: 25300, status: 'overdue', createdAt: '2024-07-15 04:00 م', items: [{id: 1, description: 'أجهزة حاسوب محمولة', quantity: 2, unitPrice: 11000, total: 22000}], subtotal: 22000, tax: {rate: 15, amount: 3300}, discount: {type: 'fixed', value: 0, amount: 0} },
-  { id: 'INV-2024-004', customerId: 'CUST-009', customer: { name: 'الخدمات اللوجستية السريعة', address: '101 شارع التحلية، الدمام', email: 'info@fastlog.sa', phone: '013-123-4567' }, date: '2024-07-12', dueDate: '2024-07-12', total: 5000, status: 'paid', createdAt: '2024-07-12 10:00 ص', items: [{id: 1, description: 'خدمات شحن', quantity: 10, unitPrice: 500, total: 5000}], subtotal: 5000, tax: {rate: 0, amount: 0}, discount: {type: 'fixed', value: 0, amount: 0} },
-  { id: 'INV-2024-005', customerId: 'CUST-010', customer: { name: 'شركة الأغذية الصحية', address: '213 شارع الأمير سلطان، جدة', email: 'contact@healthyfoods.sa', phone: '012-987-6543' }, date: '2024-07-10', dueDate: '2024-08-09', total: 14375, status: 'unpaid', createdAt: '2024-07-10 01:20 م', items: [{id: 1, description: 'منتجات عضوية', quantity: 1, unitPrice: 12500, total: 12500}], subtotal: 12500, tax: {rate: 15, amount: 1875}, discount: {type: 'fixed', value: 0, amount: 0} },
+// FIX: Added missing currency property
+  { id: 'INV-2024-001', customerId: 'CUST-006', customer: { name: 'شركة المشاريع الحديثة', address: '123 شارع الملك فهد، الرياض', email: 'contact@modern.sa', phone: '011-234-5678' }, date: '2024-07-20', dueDate: '2024-08-19', total: 17250, status: 'unpaid', createdAt: '2024-07-20 09:15 ص', items: [{id: 1, description: 'استشارات إدارية', quantity: 15, unitPrice: 1000, total: 15000}], subtotal: 15000, tax: {rate: 15, amount: 2250}, discount: {type: 'fixed', value: 0, amount: 0}, terms: 'الدفع خلال 30 يوم.', currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
+// FIX: Added missing currency property
+  { id: 'INV-2024-002', customerId: 'CUST-007', customer: { name: 'مؤسسة البناء المتكامل', address: '456 طريق الملك عبدالله، جدة', email: 'info@binaa.sa', phone: '012-345-6789' }, date: '2024-07-18', dueDate: '2024-07-18', total: 8500, status: 'paid', createdAt: '2024-07-18 11:30 ص', items: [{id: 1, description: 'مواد بناء متنوعة', quantity: 1, unitPrice: 8500, total: 8500}], subtotal: 8500, tax: {rate: 0, amount: 0}, discount: {type: 'fixed', value: 0, amount: 0}, currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
+// FIX: Added missing currency property
+  { id: 'INV-2024-003', customerId: 'CUST-008', customer: { name: 'متجر التكنولوجيا الأول', address: '789 برج المملكة، الرياض', email: 'sales@techone.com', phone: '011-987-6543' }, date: '2024-07-15', dueDate: '2024-07-30', total: 25300, status: 'overdue', createdAt: '2024-07-15 04:00 م', items: [{id: 1, description: 'أجهزة حاسوب محمولة', quantity: 2, unitPrice: 11000, total: 22000}], subtotal: 22000, tax: {rate: 15, amount: 3300}, discount: {type: 'fixed', value: 0, amount: 0}, currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
+// FIX: Added missing currency property
+  { id: 'INV-2024-004', customerId: 'CUST-009', customer: { name: 'الخدمات اللوجستية السريعة', address: '101 شارع التحلية، الدمام', email: 'info@fastlog.sa', phone: '013-123-4567' }, date: '2024-07-12', dueDate: '2024-07-12', total: 5000, status: 'paid', createdAt: '2024-07-12 10:00 ص', items: [{id: 1, description: 'خدمات شحن', quantity: 10, unitPrice: 500, total: 5000}], subtotal: 5000, tax: {rate: 0, amount: 0}, discount: {type: 'fixed', value: 0, amount: 0}, currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
+// FIX: Added missing currency property
+  { id: 'INV-2024-005', customerId: 'CUST-010', customer: { name: 'شركة الأغذية الصحية', address: '213 شارع الأمير سلطان، جدة', email: 'contact@healthyfoods.sa', phone: '012-987-6543' }, date: '2024-07-10', dueDate: '2024-08-09', total: 14375, status: 'unpaid', createdAt: '2024-07-10 01:20 م', items: [{id: 1, description: 'منتجات عضوية', quantity: 1, unitPrice: 12500, total: 12500}], subtotal: 12500, tax: {rate: 15, amount: 1875}, discount: {type: 'fixed', value: 0, amount: 0}, currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
 ];
 
 let quotations: Quotation[] = [
@@ -123,6 +128,8 @@ let quotations: Quotation[] = [
     discount: { type: 'fixed', value: 0, amount: 0 },
     total: 28750,
     terms: 'يتم دفع 50% مقدماً والباقي عند التسليم. العرض سارٍ لمدة 30 يوماً.',
+// FIX: Added missing currency property
+    currency: { code: 'EGP', symbol: 'currency.egpSymbol' },
   },
   { 
     id: 'QT-2024-002', 
@@ -143,6 +150,8 @@ let quotations: Quotation[] = [
     total: 45650,
     notes: 'سيتم تسليم الأجهزة خلال 3 أيام عمل.',
     terms: 'الدفع عند الاستلام. ضمان لمدة عامين على الأجهزة.',
+// FIX: Added missing currency property
+    currency: { code: 'EGP', symbol: 'currency.egpSymbol' },
   },
   { 
     id: 'QT-2024-003', 
@@ -160,27 +169,40 @@ let quotations: Quotation[] = [
     tax: { rate: 15, amount: 1350 },
     discount: { type: 'fixed', value: 0, amount: 0 },
     total: 10350,
+// FIX: Added missing currency property
+    currency: { code: 'EGP', symbol: 'currency.egpSymbol' },
   },
 ];
 
 const supplierInvoices: SupplierInvoice[] = [
-  { id: 'INV-S-2024-001', supplierId: 'SUP-001', supplier: { name: 'شركة التوريدات العالمية', address: 'المنطقة الصناعية، الرياض', email: 'sales@global-supplies.com', phone: '011-555-1234' }, invoiceDate: '2024-07-19', dueDate: '2024-08-18', total: 8625, status: 'unpaid', createdAt: '2024-07-19 03:20 م', items: [{id: 1, description: 'مواد خام - دفعة يوليو', quantity: 1, unitPrice: 7500, total: 7500}], subtotal: 7500, tax: {rate: 15, amount: 1125}, discount: {type: 'fixed', value: 0, amount: 0} },
-  { id: 'INV-S-2024-002', supplierId: 'SUP-002', supplier: { name: 'مجموعة الصناعات المتقدمة', address: 'المدينة الصناعية الثانية، جدة', email: 'info@adv-industries.com', phone: '012-555-5678' }, invoiceDate: '2024-07-15', dueDate: '2024-08-14', total: 12000, status: 'paid', createdAt: '2024-07-15 09:00 ص', items: [{id: 1, description: 'قطع غيار ماكينات', quantity: 20, unitPrice: 600, total: 12000}], subtotal: 12000, tax: {rate: 0, amount: 0}, discount: {type: 'fixed', value: 0, amount: 0} },
-  { id: 'INV-S-2024-003', supplierId: 'SUP-003', supplier: { name: 'الموردون المتحدون', address: 'طريق الميناء، الدمام', email: 'contact@united-suppliers.net', phone: '013-555-8765' }, invoiceDate: '2024-06-25', dueDate: '2024-07-25', total: 5500, status: 'paid', createdAt: '2024-06-25 02:10 م', items: [{id: 1, description: 'خدمات لوجستية', quantity: 1, unitPrice: 5500, total: 5500}], subtotal: 5500, tax: {rate: 0, amount: 0}, discount: {type: 'fixed', value: 0, amount: 0} },
-  { id: 'INV-S-2024-004', supplierId: 'SUP-004', supplier: { name: 'شركة الحلول التقنية', address: 'وادي التقنية، الرياض', email: 'support@tech-solutions.sa', phone: '011-555-4321' }, invoiceDate: '2024-06-10', dueDate: '2024-07-10', total: 10580, status: 'overdue', createdAt: '2024-06-10 10:00 ص', items: [{id: 1, description: 'تراخيص برامج', quantity: 4, unitPrice: 2300, total: 9200}], subtotal: 9200, tax: {rate: 15, amount: 1380}, discount: {type: 'fixed', value: 0, amount: 0} },
-  { id: 'INV-S-2024-005', supplierId: 'SUP-005', supplier: { name: 'مؤسسة المواد الخام', address: 'ينبع الصناعية', email: 'orders@raw-materials.co', phone: '014-555-9900' }, invoiceDate: '2024-07-22', dueDate: '2024-08-21', total: 20700, status: 'unpaid', createdAt: '2024-07-22 11:50 ص', items: [{id: 1, description: 'بوليمرات صناعية', quantity: 5, unitPrice: 3600, total: 18000}], subtotal: 18000, tax: {rate: 15, amount: 2700}, discount: {type: 'fixed', value: 0, amount: 0} },
+// FIX: Added missing currency property
+  { id: 'INV-S-2024-001', supplierId: 'SUP-001', supplier: { name: 'شركة التوريدات العالمية', address: 'المنطقة الصناعية، الرياض', email: 'sales@global-supplies.com', phone: '011-555-1234' }, invoiceDate: '2024-07-19', dueDate: '2024-08-18', total: 8625, status: 'unpaid', createdAt: '2024-07-19 03:20 م', items: [{id: 1, description: 'مواد خام - دفعة يوليو', quantity: 1, unitPrice: 7500, total: 7500}], subtotal: 7500, tax: {rate: 15, amount: 1125}, discount: {type: 'fixed', value: 0, amount: 0}, currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
+// FIX: Added missing currency property
+  { id: 'INV-S-2024-002', supplierId: 'SUP-002', supplier: { name: 'مجموعة الصناعات المتقدمة', address: 'المدينة الصناعية الثانية، جدة', email: 'info@adv-industries.com', phone: '012-555-5678' }, invoiceDate: '2024-07-15', dueDate: '2024-08-14', total: 12000, status: 'paid', createdAt: '2024-07-15 09:00 ص', items: [{id: 1, description: 'قطع غيار ماكينات', quantity: 20, unitPrice: 600, total: 12000}], subtotal: 12000, tax: {rate: 0, amount: 0}, discount: {type: 'fixed', value: 0, amount: 0}, currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
+// FIX: Added missing currency property
+  { id: 'INV-S-2024-003', supplierId: 'SUP-003', supplier: { name: 'الموردون المتحدون', address: 'طريق الميناء، الدمام', email: 'contact@united-suppliers.net', phone: '013-555-8765' }, invoiceDate: '2024-06-25', dueDate: '2024-07-25', total: 5500, status: 'paid', createdAt: '2024-06-25 02:10 م', items: [{id: 1, description: 'خدمات لوجستية', quantity: 1, unitPrice: 5500, total: 5500}], subtotal: 5500, tax: {rate: 0, amount: 0}, discount: {type: 'fixed', value: 0, amount: 0}, currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
+// FIX: Added missing currency property
+  { id: 'INV-S-2024-004', supplierId: 'SUP-004', supplier: { name: 'شركة الحلول التقنية', address: 'وادي التقنية، الرياض', email: 'support@tech-solutions.sa', phone: '011-555-4321' }, invoiceDate: '2024-06-10', dueDate: '2024-07-10', total: 10580, status: 'overdue', createdAt: '2024-06-10 10:00 ص', items: [{id: 1, description: 'تراخيص برامج', quantity: 4, unitPrice: 2300, total: 9200}], subtotal: 9200, tax: {rate: 15, amount: 1380}, discount: {type: 'fixed', value: 0, amount: 0}, currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
+// FIX: Added missing currency property
+  { id: 'INV-S-2024-005', supplierId: 'SUP-005', supplier: { name: 'مؤسسة المواد الخام', address: 'ينبع الصناعية', email: 'orders@raw-materials.co', phone: '014-555-9900' }, invoiceDate: '2024-07-22', dueDate: '2024-08-21', total: 20700, status: 'unpaid', createdAt: '2024-07-22 11:50 ص', items: [{id: 1, description: 'بوليمرات صناعية', quantity: 5, unitPrice: 3600, total: 18000}], subtotal: 18000, tax: {rate: 15, amount: 2700}, discount: {type: 'fixed', value: 0, amount: 0}, currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
 ];
 
 const receiptsData: Receipt[] = [
-  { id: 'REC-2024-001', customer: { name: 'خالد عبد العزيز', address: '123 شارع الملك فهد، الرياض', email: 'khalid.a@example.com', phone: '0501234567' }, date: '2024-07-25', createdAt: '2024-07-25 10:00 ص', total: 5000, status: 'posted', paymentMethod: 'تحويل بنكي', notes: 'دفعة من فاتورة INV-2024-001' },
-  { id: 'REC-2024-002', customer: { name: 'فاطمة محمد', address: '456 طريق الأمير سلطان، جدة', email: 'fatima.m@example.com', phone: '0559876543' }, date: '2024-07-24', createdAt: '2024-07-24 03:15 م', total: 10000, status: 'posted', paymentMethod: 'نقداً', notes: 'دفعة مقدمة لمشروع جديد' },
-  { id: 'REC-2024-003', customer: { name: 'شركة التقنية المبتكرة', address: '789 برج المملكة، الرياض', email: 'contact@tech-innovate.com', phone: '0112345678' }, date: '2024-07-23', createdAt: '2024-07-23 11:45 ص', total: 15000, status: 'draft', paymentMethod: 'شيك', notes: 'تسوية حساب' },
+// FIX: Added missing currency property
+  { id: 'REC-2024-001', customer: { name: 'خالد عبد العزيز', address: '123 شارع الملك فهد، الرياض', email: 'khalid.a@example.com', phone: '0501234567' }, date: '2024-07-25', createdAt: '2024-07-25 10:00 ص', total: 5000, status: 'posted', paymentMethod: 'تحويل بنكي', notes: 'دفعة من فاتورة INV-2024-001', currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
+// FIX: Added missing currency property
+  { id: 'REC-2024-002', customer: { name: 'فاطمة محمد', address: '456 طريق الأمير سلطان، جدة', email: 'fatima.m@example.com', phone: '0559876543' }, date: '2024-07-24', createdAt: '2024-07-24 03:15 م', total: 10000, status: 'posted', paymentMethod: 'نقداً', notes: 'دفعة مقدمة لمشروع جديد', currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
+// FIX: Added missing currency property
+  { id: 'REC-2024-003', customer: { name: 'شركة التقنية المبتكرة', address: '789 برج المملكة، الرياض', email: 'contact@tech-innovate.com', phone: '0112345678' }, date: '2024-07-23', createdAt: '2024-07-23 11:45 ص', total: 15000, status: 'draft', paymentMethod: 'شيك', notes: 'تسوية حساب', currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
 ];
 
 const paymentVouchersData: PaymentVoucher[] = [
-    { id: 'PV-2024-001', supplier: { name: 'شركة التوريدات العالمية', address: 'المنطقة الصناعية، الرياض', email: 'sales@global-supplies.com', phone: '011-555-1234' }, date: '2024-07-26', createdAt: '2024-07-26 09:30 ص', total: 8625, status: 'posted', paymentMethod: 'تحويل بنكي', notes: 'سداد فاتورة INV-S-2024-001' },
-    { id: 'PV-2024-002', supplier: { name: 'شركة الحلول التقنية', address: 'وادي التقنية، الرياض', email: 'support@tech-solutions.sa', phone: '011-555-4321' }, date: '2024-07-25', createdAt: '2024-07-25 01:00 م', total: 5000, status: 'posted', paymentMethod: 'شيك', notes: 'دفعة من فاتورة INV-S-2024-004' },
-    { id: 'PV-2024-003', supplier: { name: 'الموردون المتحدون', address: 'طريق الميناء، الدمام', email: 'contact@united-suppliers.net', phone: '013-555-8765' }, date: '2024-07-24', createdAt: '2024-07-24 04:00 م', total: 2000, status: 'draft', paymentMethod: 'نقداً', notes: 'مصاريف نثرية' },
+// FIX: Added missing currency property
+    { id: 'PV-2024-001', supplier: { name: 'شركة التوريدات العالمية', address: 'المنطقة الصناعية، الرياض', email: 'sales@global-supplies.com', phone: '011-555-1234' }, date: '2024-07-26', createdAt: '2024-07-26 09:30 ص', total: 8625, status: 'posted', paymentMethod: 'تحويل بنكي', notes: 'سداد فاتورة INV-S-2024-001', currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
+// FIX: Added missing currency property
+    { id: 'PV-2024-002', supplier: { name: 'شركة الحلول التقنية', address: 'وادي التقنية، الرياض', email: 'support@tech-solutions.sa', phone: '011-555-4321' }, date: '2024-07-25', createdAt: '2024-07-25 01:00 م', total: 5000, status: 'posted', paymentMethod: 'شيك', notes: 'دفعة من فاتورة INV-S-2024-004', currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
+// FIX: Added missing currency property
+    { id: 'PV-2024-003', supplier: { name: 'الموردون المتحدون', address: 'طريق الميناء، الدمام', email: 'contact@united-suppliers.net', phone: '013-555-8765' }, date: '2024-07-24', createdAt: '2024-07-24 04:00 م', total: 2000, status: 'draft', paymentMethod: 'نقداً', notes: 'مصاريف نثرية', currency: { code: 'EGP', symbol: 'currency.egpSymbol' } },
 ];
 
 const customerAccountStatements: { [key: string]: AccountStatement } = {
@@ -197,30 +219,32 @@ const customerAccountStatements: { [key: string]: AccountStatement } = {
             { date: '2024-07-10', transactionId: 'INV-2024-003', description: 'فاتورة مبيعات', debit: 11800, credit: 0, balance: 23800 },
             { date: '2024-07-15', transactionId: 'PAY-0058', description: 'دفعة من الحساب', debit: 0, credit: 10000, balance: 13800 },
             { date: '2024-07-25', transactionId: 'INV-2024-009', description: 'فاتورة مبيعات', debit: 5000, credit: 0, balance: 18800 },
-        ]
+        ],
+// FIX: Added missing currency property
+        currency: { code: 'EGP', symbol: 'currency.egpSymbol' },
     }
 };
 
 const productsData: Product[] = [];
 
 const usersData: User[] = [
-    { id: 'USR-001', name: 'أحمد الرئيسي', email: 'ahmed.manager@example.com', role: 'مدير النظام', status: 'active', avatar: 'https://picsum.photos/id/1005/100/100' },
-    { id: 'USR-002', name: 'محمد المحاسب', email: 'mohammed.accountant@example.com', role: 'محاسب', status: 'active', avatar: 'https://picsum.photos/id/1011/100/100' },
-    { id: 'USR-003', name: 'علي مندوب', email: 'ali.sales@example.com', role: 'مندوب مبيعات', status: 'inactive', avatar: 'https://picsum.photos/id/1025/100/100' },
-    { id: 'USR-004', name: 'نورة الدعم', email: 'noura.support@example.com', role: 'دعم فني', status: 'active', avatar: 'https://picsum.photos/id/1027/100/100' },
+    { id: 'USR-001', name: 'أحمد الرئيسي', email: 'ahmed.manager@example.com', role: 'role.admin', status: 'active', avatar: 'https://picsum.photos/id/1005/100/100' },
+    { id: 'USR-002', name: 'محمد المحاسب', email: 'mohammed.accountant@example.com', role: 'role.accountant', status: 'active', avatar: 'https://picsum.photos/id/1011/100/100' },
+    { id: 'USR-003', name: 'علي مندوب', email: 'ali.sales@example.com', role: 'role.sales', status: 'inactive', avatar: 'https://picsum.photos/id/1025/100/100' },
+    { id: 'USR-004', name: 'نورة الدعم', email: 'noura.support@example.com', role: 'role.support', status: 'active', avatar: 'https://picsum.photos/id/1027/100/100' },
 ];
 
 const rolesData: Role[] = [
-    { id: 'ROLE-01', name: 'مدير النظام', description: 'يمتلك جميع الصلاحيات على النظام.', userCount: 1 },
-    { id: 'ROLE-02', name: 'محاسب', description: 'صلاحيات على الحسابات والفواتير والسندات.', userCount: 3 },
-    { id: 'ROLE-03', name: 'مندوب مبيعات', description: 'صلاحيات على عروض الأسعار وفواتير المبيعات.', userCount: 5 },
-    { id: 'ROLE-04', name: 'دعم فني', description: 'صلاحيات محدودة لعرض البيانات.', userCount: 2 },
+    { id: 'ROLE-01', name: 'role.admin', description: 'role.adminDescription', userCount: 1 },
+    { id: 'ROLE-02', name: 'role.accountant', description: 'role.accountantDescription', userCount: 3 },
+    { id: 'ROLE-03', name: 'role.sales', description: 'role.salesDescription', userCount: 5 },
+    { id: 'ROLE-04', name: 'role.support', description: 'role.supportDescription', userCount: 2 },
 ];
 
 const companySettingsData: CompanySettingsConfig = {
-  systemName: 'نظام ERP',
-  companyName: 'شركتنا',
-  address: '١٢٣ الشارع الرئيسي، مدينة، دولة',
+  systemName: 'company.systemName',
+  companyName: 'company.companyName',
+  address: 'company.address',
   phone: '920012345',
   email: 'info@ourcompany.com',
   website: 'www.ourcompany.com'
@@ -323,6 +347,16 @@ const supplierAccountStatementSettingsData: AccountStatementSettingsConfig = {
     ]
 };
 
+// FIX: Added currency settings data using translation keys
+const currencySettingsData: CurrencySettingsConfig = {
+    defaultCurrency: 'EGP',
+    currencies: [
+        { code: 'EGP', name: 'currency.egp', symbol: 'currency.egpSymbol', taxRate: 14 },
+        { code: 'SAR', name: 'currency.sar', symbol: 'currency.sarSymbol', taxRate: 15 },
+        { code: 'USD', name: 'currency.usd', symbol: 'currency.usdSymbol', taxRate: 0 },
+    ]
+};
+
 
 export const getSalesInvoices = (): SalesInvoice[] => salesInvoices;
 export const getSalesInvoiceById = (id: string): SalesInvoice | undefined => salesInvoices.find(inv => inv.id === id);
@@ -372,7 +406,9 @@ export const getCustomerAccountStatement = (customerId: string): AccountStatemen
         statementDate: new Date().toISOString().split('T')[0],
         openingBalance: 0,
         closingBalance: 0,
-        entries: []
+        entries: [],
+// FIX: Added missing currency property
+        currency: { code: 'EGP', symbol: 'currency.egpSymbol' },
     }
 };
 
@@ -395,7 +431,9 @@ export const getSupplierAccountStatement = (supplierId: string): AccountStatemen
             { date: '2024-07-01', transactionId: 'INV-S-080', description: 'فاتورة مشتريات', debit: 10000, credit: 0, balance: opening + 10000 },
             { date: '2024-07-15', transactionId: 'PAY-V-091', description: 'سند صرف', debit: 0, credit: 10000, balance: opening },
             { date: '2024-07-20', transactionId: 'INV-S-088', description: 'فاتورة مشتريات', debit: 15000, credit: 0, balance: closing },
-        ]
+        ],
+// FIX: Added missing currency property
+        currency: { code: 'EGP', symbol: 'currency.egpSymbol' },
     }
 };
 
@@ -416,3 +454,5 @@ export const getReceiptSettings = (): ReceiptSettingsConfig => receiptSettingsDa
 export const getPaymentVoucherSettings = (): PaymentVoucherSettingsConfig => paymentVoucherSettingsData;
 export const getCustomerAccountStatementSettings = (): AccountStatementSettingsConfig => customerAccountStatementSettingsData;
 export const getSupplierAccountStatementSettings = (): AccountStatementSettingsConfig => supplierAccountStatementSettingsData;
+// FIX: Export currency settings getter
+export const getCurrencySettings = (): CurrencySettingsConfig => currencySettingsData;

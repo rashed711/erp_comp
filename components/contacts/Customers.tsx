@@ -5,12 +5,14 @@ import { extractTime, extractDate } from '../../utils/formatters';
 import ConfirmationModal from '../shared/ConfirmationModal';
 import AddCustomerModal from './AddCustomerModal';
 import { API_BASE_URL } from '../../services/api';
+import { useI18n } from '../../i18n/I18nProvider';
 
 interface CustomersProps {
     onNavigate: (route: { page: string; id?: string }) => void;
 }
 
 const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
+    const { t, language } = useI18n();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<React.ReactNode | null>(null);
@@ -28,15 +30,16 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
     const fetchCustomers = async () => {
         setIsLoading(true);
         setError(null);
+        let responseText = '';
         try {
             const response = await fetch(`${API_BASE_URL}customers.php`, { 
                 cache: 'no-cache',
                 headers: { 'Accept': 'application/json' }
             });
             
-            const text = await response.text();
+            responseText = await response.text();
             
-            if (text.includes('aes.js') && text.includes('document.cookie')) {
+            if (responseText.includes('aes.js') && responseText.includes('document.cookie')) {
                 throw new Error('HOSTING_SECURITY_CHALLENGE');
             }
             
@@ -44,7 +47,7 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                 throw new Error(`NETWORK_ERROR::${response.status}`);
             }
             
-            const data = JSON.parse(text);
+            const data = JSON.parse(responseText);
             if (typeof data === 'object' && data !== null && data.error) {
                 throw new Error(data.error);
             }
@@ -94,7 +97,7 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                  detailedError = (
                     <div>
                         <p className="font-bold">فشل تحليل استجابة الخادم (Invalid JSON).</p>
-                        <p className="mt-2">هذا يعني غالبًا وجود خطأ برمجي (Fatal Error) في ملف PHP يمنعه من إخراج بيانات JSON صحيحة.</p>
+                        <p className="mt-2">هذا يعني غالبًا وجود خطأ برمجي (Fatal Error) في ملف PHP. رسالة الخطأ من الخادم: <pre className="mt-2 p-2 bg-gray-200 text-red-900 rounded-md text-xs text-left" dir="ltr">{responseText}</pre></p>
                         <p className="mt-3 font-semibold">اذهب إلى صفحة "تشخيص الاتصال" لتحديد المشكلة بدقة.</p>
                     </div>
                 );
@@ -155,6 +158,7 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
 
     const handleDeleteCustomer = async () => {
         if (customerToDelete) {
+            let responseText = '';
             try {
                 const response = await fetch(`${API_BASE_URL}customers.php`, {
                     method: 'DELETE',
@@ -163,7 +167,7 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                     cache: 'no-cache',
                 });
                 
-                const responseText = await response.text();
+                responseText = await response.text();
 
                 if (!response.ok) {
                     throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${responseText}`);
@@ -209,7 +213,7 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
     const handleSaveCustomer = async (customerData: Omit<Customer, 'id' | 'createdAt'>, id: string | null) => {
         setIsSaving(true);
         setSaveError(null);
-        
+        let responseText = '';
         try {
             const isEdit = !!id;
             const url = `${API_BASE_URL}customers.php`;
@@ -223,7 +227,7 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                 cache: 'no-cache' 
             });
             
-            const responseText = await response.text();
+            responseText = await response.text();
 
             if (!response.ok) {
                 throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${responseText}`);
@@ -254,8 +258,8 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
         <>
             <div className="space-y-8">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">العملاء</h1>
-                    <p className="text-gray-500">إدارة وعرض قائمة العملاء.</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">{t('customers.title')}</h1>
+                    <p className="text-gray-500">{t('customers.description')}</p>
                 </div>
 
                 {error && (
@@ -267,12 +271,12 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
 
                 <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md w-full">
                     <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                        <h2 className="text-xl font-semibold text-gray-800 w-full sm:w-auto">قائمة العملاء</h2>
+                        <h2 className="text-xl font-semibold text-gray-800 w-full sm:w-auto">{t('customers.listTitle')}</h2>
                         <div className="flex items-center gap-4 w-full sm:w-auto">
                             <div className="relative w-full sm:w-64">
                                 <input
                                     type="text"
-                                    placeholder="بحث بالاسم, البريد, الهاتف..."
+                                    placeholder={t('customers.searchPlaceholder')}
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
@@ -283,7 +287,7 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                             </div>
                             <button onClick={handleOpenAddModal} className="flex-shrink-0 flex items-center bg-emerald-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-px text-sm sm:text-base">
                                 <Icons.PlusIcon className="w-5 h-5 sm:ml-2" />
-                                <span className="hidden sm:inline mr-2">إضافة عميل جديد</span>
+                                <span className="hidden sm:inline mr-2">{t('customers.add')}</span>
                             </button>
                         </div>
                     </div>
@@ -291,13 +295,13 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                         <table className="w-full text-right text-sm">
                             <thead>
                                 <tr className="bg-gray-50 border-b text-xs sm:text-sm text-gray-600">
-                                    <th className="p-3 font-semibold text-right hidden sm:table-cell">الوقت</th>
-                                    <th className="p-3 font-semibold text-right">تاريخ الإنشاء</th>
-                                    <th className="p-3 font-semibold text-right">الاسم</th>
-                                    <th className="p-3 font-semibold text-right">البريد الإلكتروني</th>
-                                    <th className="p-3 font-semibold text-right">الهاتف</th>
-                                    <th className="p-3 font-semibold text-right hidden md:table-cell">العنوان</th>
-                                    <th className="p-3 font-semibold text-center">إجراءات</th>
+                                    <th className="p-3 font-semibold text-right hidden sm:table-cell">{t('common.time')}</th>
+                                    <th className="p-3 font-semibold text-right">{t('customers.table.createdAt')}</th>
+                                    <th className="p-3 font-semibold text-right">{t('customers.table.name')}</th>
+                                    <th className="p-3 font-semibold text-right">{t('customers.table.email')}</th>
+                                    <th className="p-3 font-semibold text-right">{t('customers.table.phone')}</th>
+                                    <th className="p-3 font-semibold text-right hidden md:table-cell">{t('customers.table.address')}</th>
+                                    <th className="p-3 font-semibold text-center">{t('common.actions')}</th>
                                 </tr>
                             </thead>
                             <tbody className="text-gray-700">
@@ -306,7 +310,7 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                                         <td colSpan={7} className="text-center py-8 text-gray-500">
                                             <div className="flex justify-center items-center">
                                                 <svg className="animate-spin h-5 w-5 text-emerald-500 ml-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                                جاري تحميل البيانات...
+                                                {t('common.loading')}
                                             </div>
                                         </td>
                                     </tr>
@@ -317,7 +321,7 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                                             className="border-b hover:bg-gray-50 transition-colors cursor-pointer"
                                             onClick={() => onNavigate({ page: 'customerAccountStatement', id: customer.id })}
                                         >
-                                            <td className="p-3 hidden sm:table-cell">{customer.createdAt ? extractTime(customer.createdAt) : '-'}</td>
+                                            <td className="p-3 hidden sm:table-cell">{customer.createdAt ? extractTime(customer.createdAt, language) : '-'}</td>
                                             <td className="p-3">{customer.createdAt ? extractDate(customer.createdAt) : '-'}</td>
                                             <td className="p-3 font-medium text-gray-800">{customer.name}</td>
                                             <td className="p-3">{customer.email}</td>
@@ -325,8 +329,8 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                                             <td className="p-3 hidden md:table-cell">{customer.address}</td>
                                             <td className="p-3">
                                                 <div className="flex items-center justify-center space-x-2 space-x-reverse">
-                                                <button onClick={(e) => { e.stopPropagation(); handleOpenEditModal(customer); }} className="p-2 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-100 transition-colors" aria-label="تعديل"><Icons.PencilIcon className="w-5 h-5" /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleOpenDeleteModal(customer); }} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 transition-colors" aria-label="حذف"><Icons.TrashIcon className="w-5 h-5" /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleOpenEditModal(customer); }} className="p-2 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-100 transition-colors" aria-label={t('common.edit')}><Icons.PencilIcon className="w-5 h-5" /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleOpenDeleteModal(customer); }} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 transition-colors" aria-label={t('common.delete')}><Icons.TrashIcon className="w-5 h-5" /></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -334,7 +338,7 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                                 ) : (
                                     <tr>
                                         <td colSpan={7} className="text-center py-8 text-gray-500">
-                                            {error ? 'لا يمكن عرض البيانات حالياً.' : 'لا يوجد عملاء في قاعدة البيانات. يمكنك إضافة عميل جديد.'}
+                                            {error ? t('listPage.noDataApiError') : t('customers.notFoundDB')}
                                         </td>
                                     </tr>
                                 )}
@@ -344,11 +348,11 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                     {totalPages > 1 && !isLoading && paginatedCustomers.length > 0 && (
                         <div className="flex justify-between items-center mt-6">
                             <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-                                السابق
+                                {t('common.previous')}
                             </button>
-                            <span className="text-sm text-gray-600">صفحة {currentPage} من {totalPages}</span>
+                            <span className="text-sm text-gray-600">{t('common.page')} {currentPage} {t('common.of')} {totalPages}</span>
                             <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-                                التالي
+                                {t('common.next')}
                             </button>
                         </div>
                     )}
@@ -358,8 +362,8 @@ const Customers: React.FC<CustomersProps> = ({ onNavigate }) => {
                 isOpen={isDeleteModalOpen}
                 onClose={handleCloseDeleteModal}
                 onConfirm={handleDeleteCustomer}
-                title="تأكيد حذف العميل"
-                message={`هل أنت متأكد من رغبتك في حذف العميل "${customerToDelete?.name}"؟ سيتم حذف جميع البيانات المرتبطة به.`}
+                title={t('customers.delete.title')}
+                message={t('customers.delete.message', { name: customerToDelete?.name || '' })}
             />
             <AddCustomerModal
                 isOpen={isAddEditModalOpen}

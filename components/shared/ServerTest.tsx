@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../../services/api';
 import * as Icons from '../icons/ModuleIcons';
 import { ClockIcon } from '../icons/GenericIcons';
+import { useI18n } from '../../i18n/I18nProvider';
 
 type TestStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -13,33 +14,34 @@ interface StatusInfo {
     icon: React.ReactNode;
 }
 
-const statusStyles: Record<TestStatus, StatusInfo> = {
-    idle: { border: 'border-gray-400', bg: 'bg-gray-50', text: 'text-gray-600', label: 'في الانتظار', icon: <ClockIcon className="w-5 h-5 text-gray-500" /> },
-    loading: { border: 'border-blue-400', bg: 'bg-blue-50', text: 'text-blue-600', label: 'جاري الاختبار...', icon: <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> },
-    success: { border: 'border-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'نجح', icon: <Icons.ShieldCheckIcon className="w-5 h-5 text-emerald-500" /> },
-    error: { border: 'border-red-500', bg: 'bg-red-50', text: 'text-red-700', label: 'فشل', icon: <Icons.XIcon className="w-5 h-5 text-red-500" /> },
-};
+const ServerTest: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+    const { t } = useI18n();
 
+    const statusStyles: Record<TestStatus, StatusInfo> = {
+        idle: { border: 'border-gray-400', bg: 'bg-gray-50', text: 'text-gray-600', label: t('serverTest.status.idle'), icon: <ClockIcon className="w-5 h-5 text-gray-500" /> },
+        loading: { border: 'border-blue-400', bg: 'bg-blue-50', text: 'text-blue-600', label: t('serverTest.status.loading'), icon: <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> },
+        success: { border: 'border-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', label: t('serverTest.status.success'), icon: <Icons.ShieldCheckIcon className="w-5 h-5 text-emerald-500" /> },
+        error: { border: 'border-red-500', bg: 'bg-red-50', text: 'text-red-700', label: t('serverTest.status.failure'), icon: <Icons.XIcon className="w-5 h-5 text-red-500" /> },
+    };
 
-const ResultCard: React.FC<{ title: string; status: TestStatus; children: React.ReactNode }> = ({ title, status, children }) => {
-    const styles = statusStyles[status];
-    return (
-        <div className={`border-l-4 ${styles.border} ${styles.bg} p-4 rounded-md shadow-sm`}>
-            <div className="flex items-center justify-between">
-                <h3 className={`text-lg font-bold ${styles.text}`}>{title}</h3>
-                <div className="flex items-center gap-2 text-sm">
-                    {styles.icon}
-                    <span className={styles.text}>{styles.label}</span>
+    const ResultCard: React.FC<{ title: string; status: TestStatus; children: React.ReactNode }> = ({ title, status, children }) => {
+        const styles = statusStyles[status];
+        return (
+            <div className={`border-l-4 ${styles.border} ${styles.bg} p-4 rounded-md shadow-sm`}>
+                <div className="flex items-center justify-between">
+                    <h3 className={`text-lg font-bold ${styles.text}`}>{title}</h3>
+                    <div className="flex items-center gap-2 text-sm">
+                        {styles.icon}
+                        <span className={styles.text}>{styles.label}</span>
+                    </div>
+                </div>
+                <div className={`mt-3 text-sm ${styles.text}`}>
+                    {children}
                 </div>
             </div>
-            <div className={`mt-3 text-sm ${styles.text}`}>
-                {children}
-            </div>
-        </div>
-    );
-};
+        );
+    };
 
-const ServerTest: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const [testResults, setTestResults] = useState<any>(null);
     const [status, setStatus] = useState<TestStatus>('loading');
     const [error, setError] = useState<string | null>(null);
@@ -95,38 +97,38 @@ const ServerTest: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" style={{ transform: 'scaleX(-1)' }} />
                         </button>
                         <div>
-                            <h1 className="text-lg sm:text-xl font-bold text-gray-800">تشخيص الاتصال بالخادم</h1>
-                            <p className="text-xs sm:text-sm text-gray-500">فحص حالة الخادم وقاعدة البيانات والجداول</p>
+                            <h1 className="text-lg sm:text-xl font-bold text-gray-800">{t('serverTest.title')}</h1>
+                            <p className="text-xs sm:text-sm text-gray-500">{t('serverTest.description')}</p>
                         </div>
                     </div>
                      <button onClick={runTest} disabled={status === 'loading'} className="flex items-center gap-2 text-sm bg-emerald-600 text-white py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 disabled:bg-gray-400">
                         {status === 'loading' ? <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> : <Icons.ShareIcon style={{transform: 'rotate(180deg)'}} className="w-5 h-5"/>}
-                        إعادة الاختبار
+                        {t('serverTest.retest')}
                     </button>
                 </div>
             </header>
             <main className="p-4 sm:p-6 md:p-8">
                  <div className="max-w-4xl mx-auto space-y-6">
                     {status === 'error' && (
-                        <ResultCard title="فشل الاختبار العام" status="error">
+                        <ResultCard title={t('serverTest.generalFailure')} status="error">
                              <p className="font-bold">{error}</p>
                         </ResultCard>
                     )}
                     {testResults && (
                         <>
-                            <ResultCard title="1. فحص الخادم وبيئة PHP" status={testResults.server_info.status}>
+                            <ResultCard title={t('serverTest.step1.title')} status={testResults.server_info.status}>
                                 <ul className="list-disc pr-5 space-y-1">
-                                    <li>إصدار PHP: <strong>{testResults.server_info.php_version}</strong></li>
-                                    <li>برنامج الخادم: <strong>{testResults.server_info.server_software}</strong></li>
+                                    <li>{t('serverTest.step1.phpVersion')}: <strong>{testResults.server_info.php_version}</strong></li>
+                                    <li>{t('serverTest.step1.serverSoftware')}: <strong>{testResults.server_info.server_software}</strong></li>
                                 </ul>
                             </ResultCard>
                             
-                             <ResultCard title="2. فحص الاتصال بقاعدة البيانات" status={testResults.connection_status.status}>
+                             <ResultCard title={t('serverTest.step2.title')} status={testResults.connection_status.status}>
                                 {testResults.connection_status.status === 'success' ? (
                                     <ul className="list-disc pr-5 space-y-1">
-                                        <li>حالة الاتصال: <strong className="text-emerald-700">ناجح</strong></li>
-                                        <li>اسم قاعدة البيانات: <strong>{testResults.connection_status.db_name}</strong></li>
-                                        <li>ترميز الأحرف: <strong>{testResults.connection_status.charset}</strong> (يجب أن يكون utf8mb4)</li>
+                                        <li>{t('serverTest.step2.connectionStatus')}: <strong className="text-emerald-700">{t('serverTest.status.success')}</strong></li>
+                                        <li>{t('serverTest.step2.dbName')}: <strong>{testResults.connection_status.db_name}</strong></li>
+                                        <li>{t('serverTest.step2.charset')}: <strong>{testResults.connection_status.charset}</strong> {t('serverTest.step2.charsetRecommendation')}</li>
                                     </ul>
                                 ) : (
                                     <p className="font-bold">{testResults.connection_status.message}</p>
@@ -134,7 +136,7 @@ const ServerTest: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                             </ResultCard>
 
                             {testResults.connection_status.status === 'success' && (
-                               <ResultCard title="3. فحص جداول قاعدة البيانات" status={allTablesExist ? 'success' : 'error'}>
+                               <ResultCard title={t('serverTest.step3.title')} status={allTablesExist ? 'success' : 'error'}>
                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                        {testResults.table_status.map((table: any) => (
                                            <div key={table.table_name} className={`flex items-center gap-2 p-2 rounded-md ${table.exists ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
@@ -145,8 +147,8 @@ const ServerTest: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                                    </div>
                                    {!allTablesExist && (
                                         <div className="mt-4 border-t pt-3">
-                                            <p className="font-bold text-red-700">مشكلة: بعض الجداول المطلوبة غير موجودة!</p>
-                                            <p className="mt-1">الحل: اذهب إلى <strong>phpMyAdmin</strong>، اختر قاعدة البيانات <strong>`{testResults.connection_status.db_name}`</strong>، ثم اضغط على <strong>"Import"</strong> وقم باستيراد ملف <strong>`api/setup.sql`</strong> الذي تم تزويدك به.</p>
+                                            <p className="font-bold text-red-700">{t('serverTest.step3.problem')}</p>
+                                            <p className="mt-1">{t('serverTest.step3.solution', {dbName: testResults.connection_status.db_name})}</p>
                                         </div>
                                    )}
                                </ResultCard>

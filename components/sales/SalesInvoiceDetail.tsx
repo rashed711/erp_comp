@@ -2,14 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { getSalesInvoiceById, getSalesInvoiceSettings } from '../../services/mockApi';
 import { SalesInvoice, SalesInvoiceSettingsConfig } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
-import { formatCurrencySAR } from '../../utils/formatters';
-
-declare global {
-    interface Window {
-        jspdf: any;
-        html2canvas: any;
-    }
-}
+import { formatCurrency } from '../../utils/formatters';
+import { usePdfGenerator } from '../../hooks/usePdfGenerator';
 
 interface SalesInvoiceDetailProps {
     invoiceId: string;
@@ -20,7 +14,11 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
     const [invoice, setInvoice] = useState<SalesInvoice | null>(null);
     const [settings, setSettings] = useState<SalesInvoiceSettingsConfig | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isProcessing, setIsProcessing] = useState(false);
+
+    const { downloadPdf, isProcessing } = usePdfGenerator({
+        elementId: 'printable-invoice',
+        fileName: `Invoice-${invoice?.id}`
+    });
 
     useEffect(() => {
         const fetchInvoiceData = () => {
@@ -37,72 +35,6 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
         };
         fetchInvoiceData();
     }, [invoiceId]);
-    
-    const handleDownloadPdf = async () => {
-        setIsProcessing(true);
-        const { jsPDF } = window.jspdf;
-        const input = document.getElementById('printable-invoice');
-        if (input) {
-            const footerElement = input.children[input.children.length - 1] as HTMLElement;
-            
-            const originalStyles = {
-                parent: {
-                    height: input.style.height,
-                    display: input.style.display,
-                    flexDirection: input.style.flexDirection,
-                    width: input.style.width,
-                    maxWidth: input.style.maxWidth,
-                    margin: input.style.margin,
-                },
-                footer: { marginTop: footerElement?.style.marginTop }
-            };
-
-            try {
-                const a4Ratio = 297 / 210;
-                const canvasWidth = 1200;
-                const canvasHeight = canvasWidth * a4Ratio;
-
-                input.style.height = `${canvasHeight}px`;
-                input.style.display = 'flex';
-                input.style.flexDirection = 'column';
-                input.style.width = `${canvasWidth}px`;
-                input.style.maxWidth = 'none';
-                input.style.margin = '0';
-                if (footerElement) footerElement.style.marginTop = 'auto';
-
-                const canvas = await window.html2canvas(input, {
-                    scale: 2,
-                    useCORS: true,
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    windowWidth: canvasWidth,
-                    windowHeight: canvasHeight,
-                });
-
-                const imgData = canvas.toDataURL('image/jpeg', 0.9);
-                const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = pdf.internal.pageSize.getHeight();
-
-                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'MEDIUM');
-                pdf.save(`Invoice-${invoice?.id}.pdf`);
-            } catch (error) {
-                console.error("Error generating PDF:", error);
-                alert("حدث خطأ أثناء إنشاء ملف PDF.");
-            } finally {
-                input.style.height = originalStyles.parent.height;
-                input.style.display = originalStyles.parent.display;
-                input.style.flexDirection = originalStyles.parent.flexDirection;
-                input.style.width = originalStyles.parent.width;
-                input.style.maxWidth = originalStyles.parent.maxWidth;
-                input.style.margin = originalStyles.parent.margin;
-                if (footerElement) footerElement.style.marginTop = originalStyles.footer.marginTop;
-                setIsProcessing(false);
-            }
-        } else {
-             setIsProcessing(false);
-        }
-    };
 
      const renderDataFields = () => {
         if (!settings || !invoice) return null;
@@ -155,7 +87,7 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button onClick={handleDownloadPdf} disabled={isProcessing} className="flex items-center gap-2 text-sm bg-emerald-600 text-white py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 hover:-translate-y-px disabled:bg-emerald-400">
+                        <button onClick={downloadPdf} disabled={isProcessing} className="flex items-center gap-2 text-sm bg-emerald-600 text-white py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 hover:-translate-y-px disabled:bg-emerald-400">
                            {isProcessing ? (
                             <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -198,8 +130,8 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                                     <tr key={item.id} className="border-b">
                                         <td className="p-3">{item.description}</td>
                                         <td className="p-3 text-center">{item.quantity}</td>
-                                        <td className="p-3 text-center">{formatCurrencySAR(item.unitPrice, false)}</td>
-                                        <td className="p-3 text-left">{formatCurrencySAR(item.total, false)}</td>
+                                        <td className="p-3 text-center">{formatCurrency(item.unitPrice, invoice.currency.symbol, false)}</td>
+                                        <td className="p-3 text-left">{formatCurrency(item.total, invoice.currency.symbol, false)}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -211,21 +143,21 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                         <div className="w-full max-w-sm rounded-lg border border-emerald-200 bg-emerald-50 p-6 space-y-4">
                             <div className="flex justify-between text-gray-600">
                                 <p>المجموع الفرعي</p>
-                                <p className="font-medium text-gray-800">{formatCurrencySAR(invoice.subtotal, false)}</p>
+                                <p className="font-medium text-gray-800">{formatCurrency(invoice.subtotal, invoice.currency.symbol, false)}</p>
                             </div>
                             {invoice.discount.amount > 0 && (
                                 <div className="flex justify-between text-gray-600">
-                                    <p>الخصم ({invoice.discount.type === 'percentage' ? `${invoice.discount.value}%` : formatCurrencySAR(invoice.discount.value, false)})</p>
-                                    <p className="font-medium text-red-500">-{formatCurrencySAR(invoice.discount.amount, false)}</p>
+                                    <p>الخصم ({invoice.discount.type === 'percentage' ? `${invoice.discount.value}%` : formatCurrency(invoice.discount.value, invoice.currency.symbol, false)})</p>
+                                    <p className="font-medium text-red-500">-{formatCurrency(invoice.discount.amount, invoice.currency.symbol, false)}</p>
                                 </div>
                             )}
                             <div className="flex justify-between text-gray-600">
                                 <p>الضريبة ({invoice.tax.rate}%)</p>
-                                <p className="font-medium text-gray-800">{formatCurrencySAR(invoice.tax.amount, false)}</p>
+                                <p className="font-medium text-gray-800">{formatCurrency(invoice.tax.amount, invoice.currency.symbol, false)}</p>
                             </div>
                             <div className="!mt-6 flex justify-between items-center bg-emerald-500 text-white font-bold text-lg p-3 rounded-md">
                                 <p>الإجمالي الكلي</p>
-                                <p>{formatCurrencySAR(invoice.total, true)}</p>
+                                <p>{formatCurrency(invoice.total, invoice.currency.symbol, true)}</p>
                             </div>
                         </div>
                     </div>

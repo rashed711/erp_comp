@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { getCompanySettings } from '../../services/mockApi';
+import { useI18n } from '../../i18n/I18nProvider';
+import { TranslationKey } from '../../i18n/translations';
 
 interface LoginProps {
     onLoginSuccess: () => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+    const { t } = useI18n();
     const [email, setEmail] = useState('admin@example.com');
     const [password, setPassword] = useState('password');
     const [error, setError] = useState('');
@@ -23,24 +26,24 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             if (email === 'admin@example.com' && password === 'password') {
                 onLoginSuccess();
             } else {
-                setError('البريد الإلكتروني أو كلمة المرور غير صحيحة.');
+                setError(t('login.error'));
             }
             setIsLoading(false);
         }, 1000);
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4" style={{ direction: 'rtl' }}>
+        <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
             <div className="max-w-md w-full mx-auto">
-                <h1 className="text-4xl font-bold text-center text-emerald-600 mb-8">{companySettings?.systemName || 'نظام ERP'}</h1>
+                <h1 className="text-4xl font-bold text-center text-emerald-600 mb-8">{t(companySettings.systemName as TranslationKey)}</h1>
                 <div className="bg-white p-8 rounded-2xl shadow-lg">
-                    <h2 className="text-2xl font-bold text-gray-800 text-center mb-1">مرحباً بعودتك!</h2>
-                    <p className="text-center text-gray-500 mb-8">الرجاء تسجيل الدخول للمتابعة.</p>
+                    <h2 className="text-2xl font-bold text-gray-800 text-center mb-1">{t('login.welcome')}</h2>
+                    <p className="text-center text-gray-500 mb-8">{t('login.instructions')}</p>
                     
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
                             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                                البريد الإلكتروني
+                                {t('login.emailLabel')}
                             </label>
                             <div className="mt-1">
                                 <input
@@ -59,7 +62,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
                         <div>
                             <label htmlFor="password"className="block text-sm font-medium text-gray-700">
-                                كلمة المرور
+                                {t('login.passwordLabel')}
                             </label>
                             <div className="mt-1">
                                 <input
@@ -85,14 +88,14 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center">
                                 <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded" />
-                                <label htmlFor="remember-me" className="mr-2 block text-sm text-gray-900">
-                                    تذكرني
+                                <label htmlFor="remember-me" className="ms-2 block text-sm text-gray-900">
+                                    {t('login.rememberMe')}
                                 </label>
                             </div>
 
                             <div className="text-sm">
                                 <a href="#" className="font-medium text-emerald-600 hover:text-emerald-500">
-                                    نسيت كلمة المرور؟
+                                    {t('login.forgotPassword')}
                                 </a>
                             </div>
                         </div>
@@ -109,7 +112,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
                                 ) : (
-                                    'تسجيل الدخول'
+                                    t('login.button')
                                 )}
                             </button>
                         </div>

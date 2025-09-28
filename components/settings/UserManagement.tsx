@@ -4,11 +4,14 @@ import * as Icons from '../icons/ModuleIcons';
 import ConfirmationModal from '../shared/ConfirmationModal';
 import AddUserModal from './AddUserModal';
 import { API_BASE_URL } from '../../services/api';
+import { useI18n } from '../../i18n/I18nProvider';
+import { TranslationKey } from '../../i18n/translations';
 
 // A generic, embedded SVG placeholder for users without an avatar.
 const DEFAULT_PLACEHOLDER_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NkZTVmYSI+PHBhdGggZD0iTTIgMjB2LTJjMC0yLjIgMy42LTQgOC00czggMS44IDggNHYySDJ6bTQtMmgxMHYtLjZjMC0xLjMtMi43LTEuOS02LTEuOS0zLjMgMC02IC42LTYgMS45VjE4em02LTljMy4zIDAgNi0yLjcgNi02cy0yLjctNi02LTZzLTYgMi43LTYgNnMyLjcgNiA2IDZ6bTAtMmMyLjIgMCA0LTEuOCA0LTRzLTEuOC00LTQtNC00IDEuOC00IDRzMS44IDQgNCA0eiIvPjwvc3ZnPg==';
 
 const UserManagement: React.FC = () => {
+    const { t } = useI18n();
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -52,9 +55,9 @@ const UserManagement: React.FC = () => {
         return users.filter(user =>
             user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.role.toLowerCase().includes(searchTerm.toLowerCase())
+            t(user.role as TranslationKey).toLowerCase().includes(searchTerm.toLowerCase())
         );
-    }, [searchTerm, users]);
+    }, [searchTerm, users, t]);
     
     const paginatedUsers = useMemo(() => {
         const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -76,8 +79,8 @@ const UserManagement: React.FC = () => {
 
     const getStatusText = (status: User['status']) => {
         const statusMap = {
-            active: 'نشط',
-            inactive: 'غير نشط'
+            active: t('status.active'),
+            inactive: t('status.inactive')
         };
         return statusMap[status];
     };
@@ -175,14 +178,14 @@ const UserManagement: React.FC = () => {
             <div className="bg-white p-6 rounded-lg shadow-md w-full">
                 <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
                     <div className="w-full sm:w-auto">
-                        <h2 className="text-xl font-bold text-gray-800">إدارة المستخدمين</h2>
-                        <p className="text-sm text-gray-500 mt-1">عرض وتعديل المستخدمين في النظام.</p>
+                        <h2 className="text-xl font-bold text-gray-800">{t('settings.users.title')}</h2>
+                        <p className="text-sm text-gray-500 mt-1">{t('settings.users.description')}</p>
                     </div>
                     <div className="flex items-center gap-4 w-full sm:w-auto">
                         <div className="relative w-full sm:w-64">
                             <input
                                 type="text"
-                                placeholder="بحث بالاسم, البريد, الدور..."
+                                placeholder={t('settings.users.searchPlaceholder')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
@@ -195,7 +198,7 @@ const UserManagement: React.FC = () => {
                         </div>
                         <button onClick={handleOpenAddModal} className="flex-shrink-0 flex items-center bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-px text-sm">
                             <Icons.PlusIcon className="w-5 h-5 ml-2" />
-                            <span>إضافة مستخدم</span>
+                            <span>{t('settings.users.add')}</span>
                         </button>
                     </div>
                 </div>
@@ -204,16 +207,16 @@ const UserManagement: React.FC = () => {
                     <table className="w-full text-right text-sm">
                         <thead>
                             <tr className="bg-gray-50 border-b text-gray-600">
-                                <th className="p-3 font-semibold text-right">المستخدم</th>
-                                <th className="p-3 font-semibold text-right">الدور</th>
-                                <th className="p-3 font-semibold text-center">الحالة</th>
-                                <th className="p-3 font-semibold text-center">إجراءات</th>
+                                <th className="p-3 font-semibold text-right">{t('settings.users.table.user')}</th>
+                                <th className="p-3 font-semibold text-right">{t('addEditModal.user.roleLabel')}</th>
+                                <th className="p-3 font-semibold text-center">{t('addEditModal.user.statusLabel')}</th>
+                                <th className="p-3 font-semibold text-center">{t('common.actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="text-gray-700">
                              {isLoading ? (
                                 <tr>
-                                    <td colSpan={4} className="text-center py-8 text-gray-500">جاري تحميل المستخدمين...</td>
+                                    <td colSpan={4} className="text-center py-8 text-gray-500">{t('common.loading')}</td>
                                 </tr>
                             ) : paginatedUsers.length > 0 ? (
                                 paginatedUsers.map((user) => (
@@ -227,7 +230,7 @@ const UserManagement: React.FC = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="p-3">{user.role}</td>
+                                        <td className="p-3">{t(user.role as TranslationKey)}</td>
                                         <td className="p-3 text-center">
                                             <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClasses(user.status)}`}>
                                                 {getStatusText(user.status)}
@@ -235,8 +238,8 @@ const UserManagement: React.FC = () => {
                                         </td>
                                         <td className="p-3">
                                             <div className="flex items-center justify-center space-x-2 space-x-reverse">
-                                                <button onClick={() => handleOpenEditModal(user)} className="p-2 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-100 transition-colors" aria-label="تعديل"><Icons.PencilIcon className="w-5 h-5" /></button>
-                                                <button onClick={() => handleOpenDeleteModal(user)} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 transition-colors" aria-label="حذف"><Icons.TrashIcon className="w-5 h-5" /></button>
+                                                <button onClick={() => handleOpenEditModal(user)} className="p-2 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-100 transition-colors" aria-label={t('common.edit')}><Icons.PencilIcon className="w-5 h-5" /></button>
+                                                <button onClick={() => handleOpenDeleteModal(user)} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 transition-colors" aria-label={t('common.delete')}><Icons.TrashIcon className="w-5 h-5" /></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -244,7 +247,7 @@ const UserManagement: React.FC = () => {
                             ) : (
                                 <tr>
                                     <td colSpan={4} className="text-center py-8 text-gray-500">
-                                        لم يتم العثور على مستخدمين مطابقين.
+                                        {t('settings.users.notFound')}
                                     </td>
                                 </tr>
                             )}
@@ -258,17 +261,17 @@ const UserManagement: React.FC = () => {
                             disabled={currentPage === 1}
                             className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                         >
-                            السابق
+                            {t('common.previous')}
                         </button>
                          <span className="text-sm text-gray-600">
-                            صفحة {currentPage} من {totalPages}
+                            {t('common.page')} {currentPage} {t('common.of')} {totalPages}
                         </span>
                         <button
                             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                             disabled={currentPage === totalPages}
                             className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                         >
-                            التالي
+                            {t('common.next')}
                         </button>
                     </div>
                 )}
@@ -277,8 +280,8 @@ const UserManagement: React.FC = () => {
                 isOpen={isDeleteModalOpen}
                 onClose={handleCloseDeleteModal}
                 onConfirm={handleDeleteUser}
-                title="تأكيد حذف المستخدم"
-                message={`هل أنت متأكد من رغبتك في حذف المستخدم "${userToDelete?.name}"؟ لا يمكن التراجع عن هذا الإجراء.`}
+                title={t('settings.users.delete.title')}
+                message={t('settings.users.delete.message', { name: userToDelete?.name || ''})}
             />
             <AddUserModal
                 isOpen={isAddEditModalOpen}

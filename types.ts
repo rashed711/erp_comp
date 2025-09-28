@@ -27,6 +27,18 @@ export interface SalesData {
     purchases: number;
 }
 
+export interface Currency {
+    code: 'EGP' | 'SAR' | 'USD';
+    name: string;
+    symbol: string;
+    taxRate: number;
+}
+
+export interface CurrencySettingsConfig {
+    defaultCurrency: 'EGP' | 'SAR' | 'USD';
+    currencies: Currency[];
+}
+
 export interface DocumentItem {
   id: number; // Frontend-only ID for React keys
   productId?: string; // Actual product ID for the backend
@@ -57,6 +69,10 @@ interface DocumentTotals {
     amount: number;
   };
   total: number;
+  currency: {
+      code: string;
+      symbol: string;
+  }
 }
 
 export interface Quotation extends DocumentTotals {
@@ -128,6 +144,10 @@ export interface Receipt {
   total: number;
   paymentMethod: string;
   notes?: string;
+  currency: {
+    code: string;
+    symbol: string;
+  };
 }
 
 // New type for Payment Voucher
@@ -140,6 +160,10 @@ export interface PaymentVoucher {
   total: number;
   paymentMethod: string;
   notes?: string;
+  currency: {
+    code: string;
+    symbol: string;
+  };
 }
 
 // New types for Account Statement
@@ -164,6 +188,10 @@ export interface AccountStatement {
   openingBalance: number;
   closingBalance: number;
   entries: AccountStatementEntry[];
+  currency: {
+      code: string;
+      symbol: string;
+  };
 }
 
 // Types for Settings

@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Receipt, ContactInfo } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
-import { formatCurrencySAR, extractTime } from '../../utils/formatters';
+import { formatCurrency, extractTime } from '../../utils/formatters';
 import ConfirmationModal from '../shared/ConfirmationModal';
 import { API_BASE_URL } from '../../services/api';
+import { useI18n } from '../../i18n/I18nProvider';
 
 interface ReceiptsProps {
     onNavigate: (route: { page: string; id?: string }) => void;
 }
 
 const Receipts: React.FC<ReceiptsProps> = ({ onNavigate }) => {
+    const { t, language } = useI18n();
     const [receipts, setReceipts] = useState<Receipt[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<React.ReactNode | null>(null);
@@ -43,6 +45,7 @@ const Receipts: React.FC<ReceiptsProps> = ({ onNavigate }) => {
                 total: parseFloat(r.total),
                 paymentMethod: r.payment_method,
                 notes: r.notes,
+                currency: { code: r.currency_code || 'SAR', symbol: r.currency_symbol || 'ر.س' },
             }));
             setReceipts(formattedData);
         } catch (err) {
@@ -82,7 +85,7 @@ const Receipts: React.FC<ReceiptsProps> = ({ onNavigate }) => {
     };
     
     const getStatusText = (status: Receipt['status']) => {
-        const statusMap = { posted: 'مرحل', draft: 'مسودة' };
+        const statusMap = { posted: t('status.posted'), draft: t('status.draft') };
         return statusMap[status];
     }
 
@@ -125,8 +128,8 @@ const Receipts: React.FC<ReceiptsProps> = ({ onNavigate }) => {
         <>
             <div className="space-y-8">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">سندات القبض</h1>
-                    <p className="text-gray-500">إدارة وإنشاء سندات القبض الخاصة بك.</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">{t('receipts.title')}</h1>
+                    <p className="text-gray-500">{t('receipts.description')}</p>
                 </div>
 
                 {error && (
@@ -137,12 +140,12 @@ const Receipts: React.FC<ReceiptsProps> = ({ onNavigate }) => {
 
                 <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md w-full">
                     <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                        <h2 className="text-xl font-semibold text-gray-800 w-full sm:w-auto">قائمة سندات القبض</h2>
+                        <h2 className="text-xl font-semibold text-gray-800 w-full sm:w-auto">{t('receipts.listTitle')}</h2>
                         <div className="flex items-center gap-4 w-full sm:w-auto">
                             <div className="relative w-full sm:w-64">
                                 <input
                                     type="text"
-                                    placeholder="بحث بالرقم أو العميل..."
+                                    placeholder={t('receipts.searchPlaceholder')}
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
@@ -155,7 +158,7 @@ const Receipts: React.FC<ReceiptsProps> = ({ onNavigate }) => {
                             </div>
                             <button onClick={() => onNavigate({ page: 'createReceipt'})} className="flex-shrink-0 flex items-center bg-emerald-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-px text-sm sm:text-base">
                                 <Icons.PlusIcon className="w-5 h-5 sm:ml-2" />
-                                <span className="hidden sm:inline mr-2">إنشاء سند قبض</span>
+                                <span className="hidden sm:inline mr-2">{t('receipts.create')}</span>
                             </button>
                         </div>
                     </div>
@@ -163,20 +166,20 @@ const Receipts: React.FC<ReceiptsProps> = ({ onNavigate }) => {
                         <table className="w-full text-right text-sm">
                             <thead>
                                 <tr className="bg-gray-50 border-b text-xs sm:text-sm text-gray-600">
-                                    <th className="p-3 font-semibold text-right hidden sm:table-cell">الوقت</th>
-                                    <th className="p-3 font-semibold text-right">التاريخ</th>
-                                    <th className="p-3 font-semibold text-right">رقم السند</th>
-                                    <th className="p-3 font-semibold text-right">العميل</th>
-                                    <th className="p-3 font-semibold text-right">المبلغ</th>
-                                    <th className="p-3 font-semibold text-center">الحالة</th>
-                                    <th className="p-3 font-semibold text-center">إجراءات</th>
+                                    <th className="p-3 font-semibold text-right hidden sm:table-cell">{t('common.time')}</th>
+                                    <th className="p-3 font-semibold text-right">{t('common.date')}</th>
+                                    <th className="p-3 font-semibold text-right">{t('receipts.table.number')}</th>
+                                    <th className="p-3 font-semibold text-right">{t('quotations.table.customer')}</th>
+                                    <th className="p-3 font-semibold text-right">{t('receipts.table.amount')}</th>
+                                    <th className="p-3 font-semibold text-center">{t('common.status')}</th>
+                                    <th className="p-3 font-semibold text-center">{t('common.actions')}</th>
                                 </tr>
                             </thead>
                             <tbody className="text-gray-700">
                                 {isLoading ? (
                                     <tr>
                                         <td colSpan={7} className="text-center py-8 text-gray-500">
-                                            جاري تحميل البيانات...
+                                            {t('common.loading')}
                                         </td>
                                     </tr>
                                 ) : paginatedReceipts.length > 0 ? (
@@ -186,11 +189,11 @@ const Receipts: React.FC<ReceiptsProps> = ({ onNavigate }) => {
                                             className="border-b hover:bg-gray-50 transition-colors cursor-pointer"
                                             onClick={() => onNavigate({ page: 'receiptDetail', id: r.id })}
                                         >
-                                            <td className="p-3 hidden sm:table-cell">{extractTime(r.createdAt)}</td>
+                                            <td className="p-3 hidden sm:table-cell">{extractTime(r.createdAt, language)}</td>
                                             <td className="p-3">{r.date}</td>
                                             <td className="p-3 font-medium text-emerald-600">{r.id}</td>
                                             <td className="p-3">{r.customer.name}</td>
-                                            <td className="p-3">{formatCurrencySAR(r.total)}</td>
+                                            <td className="p-3">{formatCurrency(r.total, r.currency.symbol)}</td>
                                             <td className="p-3 text-center">
                                                 <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClasses(r.status)}`}>
                                                     {getStatusText(r.status)}
@@ -198,8 +201,8 @@ const Receipts: React.FC<ReceiptsProps> = ({ onNavigate }) => {
                                             </td>
                                             <td className="p-3">
                                                 <div className="flex items-center justify-center space-x-2 space-x-reverse">
-                                                <button onClick={(e) => { e.stopPropagation(); handleEditReceipt(r.id); }} className="p-2 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-100 transition-colors" aria-label="تعديل"><Icons.PencilIcon className="w-5 h-5" /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleOpenDeleteModal(r.id); }} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 transition-colors" aria-label="حذف"><Icons.TrashIcon className="w-5 h-5" /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleEditReceipt(r.id); }} className="p-2 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-100 transition-colors" aria-label={t('common.edit')}><Icons.PencilIcon className="w-5 h-5" /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleOpenDeleteModal(r.id); }} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 transition-colors" aria-label={t('common.delete')}><Icons.TrashIcon className="w-5 h-5" /></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -207,7 +210,7 @@ const Receipts: React.FC<ReceiptsProps> = ({ onNavigate }) => {
                                 ) : (
                                     <tr>
                                         <td colSpan={7} className="text-center py-8 text-gray-500">
-                                           {error ? 'لا يمكن عرض البيانات حالياً.' : 'لم يتم العثور على سندات مطابقة.'}
+                                           {error ? t('listPage.noDataApiError') : t('receipts.notFound')}
                                         </td>
                                     </tr>
                                 )}
@@ -221,17 +224,17 @@ const Receipts: React.FC<ReceiptsProps> = ({ onNavigate }) => {
                                 disabled={currentPage === 1}
                                 className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                             >
-                                السابق
+                                {t('common.previous')}
                             </button>
                             <span className="text-sm text-gray-600">
-                                صفحة {currentPage} من {totalPages}
+                                {t('common.page')} {currentPage} {t('common.of')} {totalPages}
                             </span>
                             <button
                                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                 disabled={currentPage === totalPages}
                                 className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                             >
-                                التالي
+                                {t('common.next')}
                             </button>
                         </div>
                     )}
@@ -241,8 +244,8 @@ const Receipts: React.FC<ReceiptsProps> = ({ onNavigate }) => {
                 isOpen={isDeleteModalOpen}
                 onClose={handleCloseDeleteModal}
                 onConfirm={handleDeleteReceipt}
-                title="تأكيد حذف سند القبض"
-                message={`هل أنت متأكد من رغبتك في حذف سند القبض رقم ${receiptToDelete}؟ لا يمكن التراجع عن هذا الإجراء.`}
+                title={t('receipts.delete.title')}
+                message={t('receipts.delete.message', { id: receiptToDelete || '' })}
             />
         </>
     );

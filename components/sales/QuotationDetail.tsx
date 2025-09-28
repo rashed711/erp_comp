@@ -2,14 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { getQuotationById, getQuotationSettings } from '../../services/mockApi';
 import { Quotation, QuotationSettingsConfig } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
-import { formatCurrencySAR } from '../../utils/formatters';
-
-declare global {
-    interface Window {
-        jspdf: any;
-        html2canvas: any;
-    }
-}
+import { formatCurrency } from '../../utils/formatters';
+import { useI18n } from '../../i18n/I18nProvider';
+import { usePdfGenerator } from '../../hooks/usePdfGenerator';
 
 interface QuotationDetailProps {
     quotationId: string;
@@ -18,10 +13,15 @@ interface QuotationDetailProps {
 }
 
 const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, onNavigate }) => {
+    const { t } = useI18n();
     const [quotation, setQuotation] = useState<Quotation | null>(null);
     const [settings, setSettings] = useState<QuotationSettingsConfig | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isProcessing, setIsProcessing] = useState(false);
+
+    const { downloadPdf, sharePdf, isProcessing } = usePdfGenerator({
+        elementId: 'printable-quotation',
+        fileName: `Quotation-${quotation?.id}`
+    });
 
     useEffect(() => {
         const fetchQuotationData = () => {
@@ -39,157 +39,6 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
         fetchQuotationData();
     }, [quotationId]);
 
-    const handleDownloadPdf = async () => {
-        setIsProcessing(true);
-        const { jsPDF } = window.jspdf;
-        const input = document.getElementById('printable-quotation');
-        if (input) {
-            const footerElement = input.children[input.children.length - 1] as HTMLElement;
-            
-            const originalStyles = {
-                parent: {
-                    height: input.style.height,
-                    display: input.style.display,
-                    flexDirection: input.style.flexDirection,
-                    width: input.style.width,
-                    maxWidth: input.style.maxWidth,
-                    margin: input.style.margin,
-                },
-                footer: { marginTop: footerElement?.style.marginTop }
-            };
-
-            try {
-                const a4Ratio = 297 / 210;
-                const canvasWidth = 1200;
-                const canvasHeight = canvasWidth * a4Ratio;
-
-                input.style.height = `${canvasHeight}px`;
-                input.style.display = 'flex';
-                input.style.flexDirection = 'column';
-                input.style.width = `${canvasWidth}px`;
-                input.style.maxWidth = 'none';
-                input.style.margin = '0';
-                if (footerElement) footerElement.style.marginTop = 'auto';
-
-                const canvas = await window.html2canvas(input, {
-                    scale: 2,
-                    useCORS: true,
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    windowWidth: canvasWidth,
-                    windowHeight: canvasHeight,
-                });
-
-                const imgData = canvas.toDataURL('image/jpeg', 0.9);
-                const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = pdf.internal.pageSize.getHeight();
-
-                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'MEDIUM');
-                pdf.save(`Quotation-${quotation?.id}.pdf`);
-            } catch (error) {
-                console.error("Error generating PDF:", error);
-                alert("حدث خطأ أثناء إنشاء ملف PDF.");
-            } finally {
-                input.style.height = originalStyles.parent.height;
-                input.style.display = originalStyles.parent.display;
-                input.style.flexDirection = originalStyles.parent.flexDirection;
-                input.style.width = originalStyles.parent.width;
-                input.style.maxWidth = originalStyles.parent.maxWidth;
-                input.style.margin = originalStyles.parent.margin;
-                if (footerElement) footerElement.style.marginTop = originalStyles.footer.marginTop;
-                setIsProcessing(false);
-            }
-        } else {
-            setIsProcessing(false);
-        }
-    };
-
-    const handleShare = async () => {
-        if (!navigator.share || !navigator.canShare || !quotation) {
-            alert('المشاركة غير مدعومة على هذا المتصفح.');
-            return;
-        }
-
-        setIsProcessing(true);
-        const { jsPDF } = window.jspdf;
-        const input = document.getElementById('printable-quotation');
-        if (!input) {
-            setIsProcessing(false);
-            return;
-        }
-
-        const footerElement = input.children[input.children.length - 1] as HTMLElement;
-        const originalStyles = {
-            parent: {
-                height: input.style.height,
-                display: input.style.display,
-                flexDirection: input.style.flexDirection,
-                width: input.style.width,
-                maxWidth: input.style.maxWidth,
-                margin: input.style.margin,
-            },
-            footer: { marginTop: footerElement?.style.marginTop }
-        };
-
-        try {
-            const a4Ratio = 297 / 210;
-            const canvasWidth = 1200;
-            const canvasHeight = canvasWidth * a4Ratio;
-
-            input.style.height = `${canvasHeight}px`;
-            input.style.display = 'flex';
-            input.style.flexDirection = 'column';
-            input.style.width = `${canvasWidth}px`;
-            input.style.maxWidth = 'none';
-            input.style.margin = '0';
-            if (footerElement) footerElement.style.marginTop = 'auto';
-
-            const canvas = await window.html2canvas(input, {
-                scale: 2,
-                useCORS: true,
-                width: canvasWidth,
-                height: canvasHeight,
-                windowWidth: canvasWidth,
-                windowHeight: canvasHeight,
-            });
-
-            const imgData = canvas.toDataURL('image/jpeg', 0.9);
-            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-
-            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'MEDIUM');
-            
-            const blob = pdf.output('blob');
-            const pdfFile = new File([blob], `Quotation-${quotation.id}.pdf`, { type: 'application/pdf' });
-            
-            if (navigator.canShare({ files: [pdfFile] })) {
-                 await navigator.share({
-                    title: `عرض سعر #${quotation.id}`,
-                    text: `إليك عرض السعر #${quotation.id}`,
-                    files: [pdfFile],
-                });
-            } else {
-                 alert('لا يمكن مشاركة ملفات PDF على هذا الجهاز/المتصفح.');
-            }
-        } catch (error) {
-            console.error("Error sharing PDF:", error);
-            // Don't show an error if the user cancels the share dialog
-            if ((error as DOMException).name !== 'AbortError') {
-                 alert("حدث خطأ أثناء مشاركة ملف PDF.");
-            }
-        } finally {
-            input.style.height = originalStyles.parent.height;
-            input.style.display = originalStyles.parent.display;
-            input.style.flexDirection = originalStyles.parent.flexDirection;
-            input.style.width = originalStyles.parent.width;
-            input.style.maxWidth = originalStyles.parent.maxWidth;
-            input.style.margin = originalStyles.parent.margin;
-            if (footerElement) footerElement.style.marginTop = originalStyles.footer.marginTop;
-            setIsProcessing(false);
-        }
-    };
 
     const renderDataFields = () => {
         if (!settings || !quotation) return null;
@@ -233,11 +82,11 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
     };
 
     if (loading) {
-        return <div className="flex items-center justify-center h-screen"><p>جاري تحميل عرض السعر...</p></div>;
+        return <div className="flex items-center justify-center h-screen"><p>{t('quotations.detail.loading')}</p></div>;
     }
 
     if (!quotation || !settings) {
-        return <div className="flex items-center justify-center h-screen"><p>لم يتم العثور على عرض السعر أو الإعدادات الخاصة به.</p></div>;
+        return <div className="flex items-center justify-center h-screen"><p>{t('quotations.detail.notFound')}</p></div>;
     }
 
     return (
@@ -249,20 +98,20 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
                             <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" style={{transform: 'scaleX(-1)'}}/>
                         </button>
                         <div>
-                             <h1 className="text-lg sm:text-xl font-bold text-emerald-600">عرض سعر #{quotation.id}</h1>
+                             <h1 className="text-lg sm:text-xl font-bold text-emerald-600">{t('quotations.detail.title', { id: quotation.id })}</h1>
                              <p className="text-xs sm:text-sm text-gray-500">{quotation.customer.name}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <button onClick={() => onNavigate({ page: 'editQuotation', id: quotationId })} className="flex items-center gap-2 text-sm bg-gray-200 text-gray-800 py-2 px-3 rounded-lg hover:bg-gray-300 transition-all duration-200 hover:-translate-y-px">
                             <Icons.PencilIcon className="w-4 h-4" />
-                            <span className="hidden sm:inline">تعديل</span>
+                            <span className="hidden sm:inline">{t('common.edit')}</span>
                         </button>
-                        <button onClick={handleShare} disabled={isProcessing} className="flex items-center gap-2 text-sm bg-gray-600 text-white py-2 px-3 rounded-lg hover:bg-gray-700 transition-all duration-200 hover:-translate-y-px disabled:bg-gray-400">
+                        <button onClick={sharePdf} disabled={isProcessing} className="flex items-center gap-2 text-sm bg-gray-600 text-white py-2 px-3 rounded-lg hover:bg-gray-700 transition-all duration-200 hover:-translate-y-px disabled:bg-gray-400">
                             <Icons.ShareIcon className="w-4 h-4" />
-                            <span className="hidden sm:inline">مشاركة</span>
+                            <span className="hidden sm:inline">{t('common.share')}</span>
                         </button>
-                        <button onClick={handleDownloadPdf} disabled={isProcessing} className="flex items-center gap-2 text-sm bg-emerald-600 text-white py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 hover:-translate-y-px disabled:bg-emerald-400">
+                        <button onClick={downloadPdf} disabled={isProcessing} className="flex items-center gap-2 text-sm bg-emerald-600 text-white py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 hover:-translate-y-px disabled:bg-emerald-400">
                            {isProcessing ? (
                             <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -271,7 +120,7 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
                            ) : (
                             <Icons.DownloadIcon className="w-4 h-4" />
                            )}
-                            <span className="hidden sm:inline">{isProcessing ? 'جاري...' : 'تحميل'}</span>
+                            <span className="hidden sm:inline">{isProcessing ? t('common.processing') : t('common.download')}</span>
                         </button>
                     </div>
                 </div>
@@ -295,10 +144,10 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
                             <thead className="bg-emerald-500 text-white">
                                 <tr>
                                     <th className="p-3 font-semibold text-sm text-center w-12 rounded-r-lg">#</th>
-                                    <th className="p-3 font-semibold text-sm text-right">البند</th>
-                                    <th className="p-3 font-semibold text-sm text-center">الكمية</th>
-                                    <th className="p-3 font-semibold text-sm text-center">سعر الوحدة</th>
-                                    <th className="p-3 font-semibold text-sm text-left rounded-l-lg">الإجمالي</th>
+                                    <th className="p-3 font-semibold text-sm text-right">{t('docCreate.item.description')}</th>
+                                    <th className="p-3 font-semibold text-sm text-center">{t('docCreate.item.quantity')}</th>
+                                    <th className="p-3 font-semibold text-sm text-center">{t('docCreate.item.unitPrice')}</th>
+                                    <th className="p-3 font-semibold text-sm text-left rounded-l-lg">{t('common.total')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -307,8 +156,8 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
                                         <td className="p-3 text-center text-gray-500">{index + 1}</td>
                                         <td className="p-3">{item.description}</td>
                                         <td className="p-3 text-center">{item.quantity}</td>
-                                        <td className="p-3 text-center">{formatCurrencySAR(item.unitPrice, false)}</td>
-                                        <td className="p-3 text-left">{formatCurrencySAR(item.total, false)}</td>
+                                        <td className="p-3 text-center">{formatCurrency(item.unitPrice, quotation.currency.symbol, false)}</td>
+                                        <td className="p-3 text-left">{formatCurrency(item.total, quotation.currency.symbol, false)}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -319,22 +168,22 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
                     <div className="mt-8 flex flex-col items-end">
                         <div className="w-full max-w-sm rounded-lg border border-emerald-200 bg-emerald-50 p-6 space-y-4">
                             <div className="flex justify-between text-gray-600">
-                                <p>المجموع الفرعي</p>
-                                <p className="font-medium text-gray-800">{formatCurrencySAR(quotation.subtotal, false)}</p>
+                                <p>{t('docCreate.subtotal')}</p>
+                                <p className="font-medium text-gray-800">{formatCurrency(quotation.subtotal, quotation.currency.symbol, false)}</p>
                             </div>
                             {quotation.discount.amount > 0 && (
                                 <div className="flex justify-between text-gray-600">
-                                    <p>الخصم ({quotation.discount.type === 'percentage' ? `${quotation.discount.value}%` : formatCurrencySAR(quotation.discount.value, false)})</p>
-                                    <p className="font-medium text-red-500">-{formatCurrencySAR(quotation.discount.amount, false)}</p>
+                                    <p>{t('docCreate.discount')} ({quotation.discount.type === 'percentage' ? `${quotation.discount.value}%` : formatCurrency(quotation.discount.value, quotation.currency.symbol, false)})</p>
+                                    <p className="font-medium text-red-500">-{formatCurrency(quotation.discount.amount, quotation.currency.symbol, false)}</p>
                                 </div>
                             )}
                             <div className="flex justify-between text-gray-600">
-                                <p>الضريبة ({quotation.tax.rate}%)</p>
-                                <p className="font-medium text-gray-800">{formatCurrencySAR(quotation.tax.amount, false)}</p>
+                                <p>{t('docCreate.tax')} ({quotation.tax.rate}%)</p>
+                                <p className="font-medium text-gray-800">{formatCurrency(quotation.tax.amount, quotation.currency.symbol, false)}</p>
                             </div>
                             <div className="!mt-6 flex justify-between items-center bg-emerald-500 text-white font-bold text-lg p-3 rounded-md">
-                                <p>الإجمالي الكلي</p>
-                                <p>{formatCurrencySAR(quotation.total, true)}</p>
+                                <p>{t('docCreate.grandTotal')}</p>
+                                <p>{formatCurrency(quotation.total, quotation.currency.symbol, true)}</p>
                             </div>
                         </div>
                     </div>
@@ -343,13 +192,13 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
                     <div className="mt-10 pt-8 border-t text-sm text-gray-600">
                         {quotation.notes && (
                             <div className="mb-6">
-                                <h3 className="font-semibold text-gray-800 mb-1">ملاحظات:</h3>
+                                <h3 className="font-semibold text-gray-800 mb-1">{t('common.notes')}:</h3>
                                 <p>{quotation.notes}</p>
                             </div>
                         )}
                          {settings.defaultTerms && (
                             <div className="mb-8">
-                                <h3 className="font-semibold text-gray-800 mb-1">الشروط والأحكام:</h3>
+                                <h3 className="font-semibold text-gray-800 mb-1">{t('common.termsAndConditions')}:</h3>
                                 <p className="whitespace-pre-wrap">{settings.defaultTerms}</p>
                             </div>
                         )}

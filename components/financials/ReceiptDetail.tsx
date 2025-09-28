@@ -2,14 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { getReceiptById, getReceiptSettings } from '../../services/mockApi';
 import { Receipt, ReceiptSettingsConfig, ReceiptFieldConfig } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
-import { formatCurrencySAR } from '../../utils/formatters';
-
-declare global {
-    interface Window {
-        jspdf: any;
-        html2canvas: any;
-    }
-}
+import { formatCurrency } from '../../utils/formatters';
+import { usePdfGenerator } from '../../hooks/usePdfGenerator';
 
 interface ReceiptDetailProps {
     receiptId: string;
@@ -20,7 +14,11 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
     const [receipt, setReceipt] = useState<Receipt | null>(null);
     const [settings, setSettings] = useState<ReceiptSettingsConfig | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isProcessing, setIsProcessing] = useState(false);
+
+    const { downloadPdf, isProcessing } = usePdfGenerator({
+        elementId: 'printable-receipt',
+        fileName: `Receipt-${receipt?.id}`
+    });
 
     useEffect(() => {
         const fetchReceiptData = () => {
@@ -32,72 +30,6 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
         };
         fetchReceiptData();
     }, [receiptId]);
-
-    const handleDownloadPdf = async () => {
-        setIsProcessing(true);
-        const { jsPDF } = window.jspdf;
-        const input = document.getElementById('printable-receipt');
-        if (input) {
-            const footerElement = input.children[input.children.length - 1] as HTMLElement;
-            
-            const originalStyles = {
-                parent: {
-                    height: input.style.height,
-                    display: input.style.display,
-                    flexDirection: input.style.flexDirection,
-                    width: input.style.width,
-                    maxWidth: input.style.maxWidth,
-                    margin: input.style.margin,
-                },
-                footer: { marginTop: footerElement?.style.marginTop }
-            };
-
-            try {
-                const a4Ratio = 297 / 210;
-                const canvasWidth = 1200;
-                const canvasHeight = canvasWidth * a4Ratio;
-
-                input.style.height = `${canvasHeight}px`;
-                input.style.display = 'flex';
-                input.style.flexDirection = 'column';
-                input.style.width = `${canvasWidth}px`;
-                input.style.maxWidth = 'none';
-                input.style.margin = '0';
-                if (footerElement) footerElement.style.marginTop = 'auto';
-
-                const canvas = await window.html2canvas(input, {
-                    scale: 2,
-                    useCORS: true,
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    windowWidth: canvasWidth,
-                    windowHeight: canvasHeight,
-                });
-
-                const imgData = canvas.toDataURL('image/jpeg', 0.9);
-                const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = pdf.internal.pageSize.getHeight();
-
-                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'MEDIUM');
-                pdf.save(`Receipt-${receipt?.id}.pdf`);
-            } catch (error) {
-                console.error("Error generating PDF:", error);
-                alert("حدث خطأ أثناء إنشاء ملف PDF.");
-            } finally {
-                input.style.height = originalStyles.parent.height;
-                input.style.display = originalStyles.parent.display;
-                input.style.flexDirection = originalStyles.parent.flexDirection;
-                input.style.width = originalStyles.parent.width;
-                input.style.maxWidth = originalStyles.parent.maxWidth;
-                input.style.margin = originalStyles.parent.margin;
-                if (footerElement) footerElement.style.marginTop = originalStyles.footer.marginTop;
-                setIsProcessing(false);
-            }
-        } else {
-             setIsProcessing(false);
-        }
-    };
 
     const findField = (key: ReceiptFieldConfig['key']): ReceiptFieldConfig | undefined => {
         return settings?.fields.find(f => f.key === key && f.isEnabled);
@@ -136,7 +68,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button onClick={handleDownloadPdf} disabled={isProcessing} className="flex items-center gap-2 text-sm bg-emerald-600 text-white py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 hover:-translate-y-px disabled:bg-emerald-400">
+                        <button onClick={downloadPdf} disabled={isProcessing} className="flex items-center gap-2 text-sm bg-emerald-600 text-white py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 hover:-translate-y-px disabled:bg-emerald-400">
                            {isProcessing ? (
                             <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -172,7 +104,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
 
                     <div className="space-y-6">
                         {renderDetailRow('customerInfo', receipt.customer.name)}
-                        {renderDetailRow('amount', <span className="font-bold text-emerald-600">{formatCurrencySAR(receipt.total)}</span>)}
+                        {renderDetailRow('amount', <span className="font-bold text-emerald-600">{formatCurrency(receipt.total, receipt.currency.symbol)}</span>)}
                         {renderDetailRow('paymentMethod', receipt.paymentMethod)}
                         {renderDetailRow('notes', receipt.notes || settings.defaultNotes)}
                     </div>

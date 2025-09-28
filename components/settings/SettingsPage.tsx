@@ -11,18 +11,14 @@ import PaymentVoucherSettings from './PaymentVoucherSettings';
 import CustomerAccountStatementSettings from './CustomerAccountStatementSettings';
 import SupplierAccountStatementSettings from './SupplierAccountStatementSettings';
 import ProductManagement from './ProductManagement';
+import CurrencySettings from './CurrencySettings';
+import { useI18n } from '../../i18n/I18nProvider';
 
 
-type SettingsTab = 'users' | 'roles' | 'company' | 'products' | 'quotations' | 'salesInvoices' | 'purchaseInvoices' | 'receipts' | 'payments' | 'customerStatements' | 'supplierStatements';
-
-const PlaceholderSettings: React.FC<{title: string}> = ({title}) => (
-    <div className="bg-white p-6 rounded-lg shadow-md w-full">
-        <h2 className="text-xl font-bold text-gray-800">{title}</h2>
-        <p className="text-sm text-gray-500 mt-1">هذه الإعدادات قيد الإنشاء.</p>
-    </div>
-);
+type SettingsTab = 'users' | 'roles' | 'company' | 'products' | 'currencies' | 'quotations' | 'salesInvoices' | 'purchaseInvoices' | 'receipts' | 'payments' | 'customerStatements' | 'supplierStatements';
 
 const SettingsPage: React.FC = () => {
+    const { t, direction } = useI18n();
     const [activeTab, setActiveTab] = useState<SettingsTab>('users');
 
     const renderContent = () => {
@@ -33,6 +29,8 @@ const SettingsPage: React.FC = () => {
                 return <RoleManagement />;
             case 'company':
                 return <CompanySettings />;
+            case 'currencies':
+                return <CurrencySettings />;
             case 'products':
                 return <ProductManagement />;
             case 'quotations':
@@ -54,45 +52,49 @@ const SettingsPage: React.FC = () => {
         }
     };
 
-    const NavItem: React.FC<{ tabId: SettingsTab; title: string; icon: React.FC<{className?: string}>; }> = ({ tabId, title, icon: Icon }) => (
-        <button
-            onClick={() => setActiveTab(tabId)}
-            className={`w-full flex items-center text-right p-3 rounded-lg transition-colors duration-200 ${
-                activeTab === tabId
-                    ? 'bg-emerald-100 text-emerald-700 font-semibold'
-                    : 'text-gray-600 hover:bg-gray-100'
-            }`}
-        >
-            <Icon className={`w-5 h-5 ml-3 ${activeTab === tabId ? 'text-emerald-600' : 'text-gray-400'}`} />
-            <span>{title}</span>
-        </button>
-    );
+    const NavItem: React.FC<{ tabId: SettingsTab; title: string; icon: React.FC<{className?: string}>; }> = ({ tabId, title, icon: Icon }) => {
+        const marginClass = direction === 'rtl' ? 'ml-3' : 'mr-3';
+        return (
+            <button
+                onClick={() => setActiveTab(tabId)}
+                className={`w-full flex items-center text-right p-3 rounded-lg transition-colors duration-200 ${
+                    activeTab === tabId
+                        ? 'bg-emerald-100 text-emerald-700 font-semibold'
+                        : 'text-gray-600 hover:bg-gray-100'
+                }`}
+            >
+                <Icon className={`w-5 h-5 ${marginClass} ${activeTab === tabId ? 'text-emerald-600' : 'text-gray-400'}`} />
+                <span>{title}</span>
+            </button>
+        );
+    };
 
     return (
         <div className="space-y-8">
             <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">الإعدادات</h1>
-                <p className="text-gray-500">إدارة إعدادات النظام والمستخدمين والأدوار.</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">{t('settings.title')}</h1>
+                <p className="text-gray-500">{t('settings.description')}</p>
             </div>
             <div className="flex flex-col md:flex-row gap-8 items-start">
                 <aside className="w-full md:w-64 lg:w-72 bg-white p-4 rounded-lg shadow-md">
                     <nav className="space-y-2">
-                        <h3 className="px-3 text-sm font-semibold text-gray-500 uppercase tracking-wider">عام</h3>
-                        <NavItem tabId="users" title="إدارة المستخدمين" icon={Icons.UserGroupIcon} />
-                        <NavItem tabId="roles" title="إدارة الأدوار" icon={Icons.ShieldCheckIcon} />
-                        <NavItem tabId="company" title="بيانات الشركة" icon={Icons.BuildingOfficeIcon} />
+                        <h3 className="px-3 text-sm font-semibold text-gray-500 uppercase tracking-wider">{t('settings.general')}</h3>
+                        <NavItem tabId="users" title={t('settings.users.title')} icon={Icons.UserGroupIcon} />
+                        <NavItem tabId="roles" title={t('settings.roles.title')} icon={Icons.ShieldCheckIcon} />
+                        <NavItem tabId="company" title={t('settings.company.title')} icon={Icons.BuildingOfficeIcon} />
+                        <NavItem tabId="currencies" title={t('settings.currencies.title')} icon={Icons.DollarSignIcon} />
                         
                         <div className="pt-4">
-                            <h3 className="px-3 text-sm font-semibold text-gray-500 uppercase tracking-wider">إعدادات التطبيق</h3>
+                            <h3 className="px-3 text-sm font-semibold text-gray-500 uppercase tracking-wider">{t('settings.application')}</h3>
                             <div className="mt-2 space-y-2">
-                                <NavItem tabId="products" title="إدارة المنتجات" icon={Icons.ArchiveIcon} />
-                                <NavItem tabId="quotations" title="عروض الاسعار" icon={Icons.DocumentTextIcon} />
-                                <NavItem tabId="salesInvoices" title="فواتير المبيعات" icon={Icons.DocumentTextIcon} />
-                                <NavItem tabId="purchaseInvoices" title="فواتير المشتريات" icon={Icons.DocumentTextIcon} />
-                                <NavItem tabId="receipts" title="سندات القبض" icon={Icons.DocumentTextIcon} />
-                                <NavItem tabId="payments" title="سندات الصرف" icon={Icons.DocumentTextIcon} />
-                                <NavItem tabId="customerStatements" title="كشوف حساب العملاء" icon={Icons.BookOpenIcon} />
-                                <NavItem tabId="supplierStatements" title="كشوف حساب الموردين" icon={Icons.BookOpenIcon} />
+                                <NavItem tabId="products" title={t('settings.products.title')} icon={Icons.ArchiveIcon} />
+                                <NavItem tabId="quotations" title={t('sidebar.quotations')} icon={Icons.DocumentTextIcon} />
+                                <NavItem tabId="salesInvoices" title={t('sidebar.salesInvoices')} icon={Icons.DocumentTextIcon} />
+                                <NavItem tabId="purchaseInvoices" title={t('sidebar.purchaseInvoices')} icon={Icons.DocumentTextIcon} />
+                                <NavItem tabId="receipts" title={t('sidebar.receipts')} icon={Icons.DocumentTextIcon} />
+                                <NavItem tabId="payments" title={t('sidebar.paymentVouchers')} icon={Icons.DocumentTextIcon} />
+                                <NavItem tabId="customerStatements" title={t('settings.customerStatements')} icon={Icons.BookOpenIcon} />
+                                <NavItem tabId="supplierStatements" title={t('settings.supplierStatements')} icon={Icons.BookOpenIcon} />
                             </div>
                         </div>
                     </nav>

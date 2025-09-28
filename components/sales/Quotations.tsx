@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Quotation, ContactInfo } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
-import { formatCurrencySAR, extractTime } from '../../utils/formatters';
+import { formatCurrency, extractTime } from '../../utils/formatters';
 import ConfirmationModal from '../shared/ConfirmationModal';
 import { API_BASE_URL } from '../../services/api';
+import { useI18n } from '../../i18n/I18nProvider';
 
 interface QuotationsProps {
     onNavigate: (route: { page: string; id?: string }) => void;
 }
 
 const Quotations: React.FC<QuotationsProps> = ({ onNavigate }) => {
+    const { t, language } = useI18n();
     const [quotations, setQuotations] = useState<Quotation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<React.ReactNode | null>(null);
@@ -55,6 +57,7 @@ const Quotations: React.FC<QuotationsProps> = ({ onNavigate }) => {
                 subtotal: parseFloat(q.subtotal || 0),
                 tax: { rate: parseFloat(q.tax_rate || 0), amount: parseFloat(q.tax_amount || 0) },
                 discount: { type: q.discount_type || 'fixed', value: parseFloat(q.discount_value || 0), amount: parseFloat(q.discount_amount || 0) },
+                currency: { code: q.currency_code || 'SAR', symbol: q.currency_symbol || 'ر.س' },
             }));
             setQuotations(formattedData);
         } catch (err: any) {
@@ -146,7 +149,7 @@ const Quotations: React.FC<QuotationsProps> = ({ onNavigate }) => {
     };
     
     const getStatusText = (status: Quotation['status']) => {
-        const statusMap = { approved: 'تمت الموافقة', sent: 'مرسل', draft: 'مسودة' };
+        const statusMap = { approved: t('status.approved'), sent: t('status.sent'), draft: t('status.draft') };
         return statusMap[status];
     }
 
@@ -204,8 +207,8 @@ const Quotations: React.FC<QuotationsProps> = ({ onNavigate }) => {
         <>
             <div className="space-y-8">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">عروض الأسعار</h1>
-                    <p className="text-gray-500">إدارة وإنشاء عروض الأسعار الخاصة بك.</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">{t('quotations.title')}</h1>
+                    <p className="text-gray-500">{t('quotations.description')}</p>
                 </div>
 
                  {error && (
@@ -216,12 +219,12 @@ const Quotations: React.FC<QuotationsProps> = ({ onNavigate }) => {
                 
                 <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md w-full">
                     <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                        <h2 className="text-xl font-semibold text-gray-800 w-full sm:w-auto">قائمة عروض الأسعار</h2>
+                        <h2 className="text-xl font-semibold text-gray-800 w-full sm:w-auto">{t('quotations.listTitle')}</h2>
                         <div className="flex items-center gap-4 w-full sm:w-auto">
                             <div className="relative w-full sm:w-64">
                                 <input
                                     type="text"
-                                    placeholder="بحث بالرقم أو العميل..."
+                                    placeholder={t('quotations.searchPlaceholder')}
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="w-full pr-10 pl-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
@@ -234,7 +237,7 @@ const Quotations: React.FC<QuotationsProps> = ({ onNavigate }) => {
                                 onClick={() => onNavigate({ page: 'createQuotation' })}
                                 className="flex-shrink-0 flex items-center bg-emerald-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-px text-sm sm:text-base">
                                 <Icons.PlusIcon className="w-5 h-5 sm:ml-2" />
-                                <span className="hidden sm:inline mr-2">إنشاء عرض سعر</span>
+                                <span className="hidden sm:inline mr-2">{t('quotations.create')}</span>
                             </button>
                         </div>
                     </div>
@@ -242,13 +245,13 @@ const Quotations: React.FC<QuotationsProps> = ({ onNavigate }) => {
                         <table className="w-full text-right text-sm">
                             <thead>
                                 <tr className="bg-gray-50 border-b text-xs sm:text-sm text-gray-600">
-                                    <th className="p-3 font-semibold text-right hidden sm:table-cell">الوقت</th>
-                                    <th className="p-3 font-semibold text-right">التاريخ</th>
-                                    <th className="p-3 font-semibold text-right">رقم العرض</th>
-                                    <th className="p-3 font-semibold text-right">العميل</th>
-                                    <th className="p-3 font-semibold text-right">الإجمالي</th>
-                                    <th className="p-3 font-semibold text-center">الحالة</th>
-                                    <th className="p-3 font-semibold text-center">إجراءات</th>
+                                    <th className="p-3 font-semibold text-right hidden sm:table-cell">{t('common.time')}</th>
+                                    <th className="p-3 font-semibold text-right">{t('common.date')}</th>
+                                    <th className="p-3 font-semibold text-right">{t('quotations.table.number')}</th>
+                                    <th className="p-3 font-semibold text-right">{t('quotations.table.customer')}</th>
+                                    <th className="p-3 font-semibold text-right">{t('common.total')}</th>
+                                    <th className="p-3 font-semibold text-center">{t('common.status')}</th>
+                                    <th className="p-3 font-semibold text-center">{t('common.actions')}</th>
                                 </tr>
                             </thead>
                             <tbody className="text-gray-700">
@@ -257,7 +260,7 @@ const Quotations: React.FC<QuotationsProps> = ({ onNavigate }) => {
                                         <td colSpan={7} className="text-center py-8 text-gray-500">
                                             <div className="flex justify-center items-center">
                                                 <svg className="animate-spin h-5 w-5 text-emerald-500 ml-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                                جاري تحميل البيانات...
+                                                {t('common.loading')}
                                             </div>
                                         </td>
                                     </tr>
@@ -268,18 +271,18 @@ const Quotations: React.FC<QuotationsProps> = ({ onNavigate }) => {
                                             className="border-b hover:bg-gray-50 transition-colors cursor-pointer"
                                             onClick={() => onNavigate({ page: 'quotationDetail', id: q.id })}
                                         >
-                                            <td className="p-3 hidden sm:table-cell">{extractTime(q.createdAt)}</td>
+                                            <td className="p-3 hidden sm:table-cell">{extractTime(q.createdAt, language)}</td>
                                             <td className="p-3">{q.date}</td>
                                             <td className="p-3 font-medium text-emerald-600">{q.id}</td>
                                             <td className="p-3">{q.customer.name}</td>
-                                            <td className="p-3">{formatCurrencySAR(q.total)}</td>
+                                            <td className="p-3">{formatCurrency(q.total, q.currency.symbol)}</td>
                                             <td className="p-3 text-center">
                                                 <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClasses(q.status)}`}>{getStatusText(q.status)}</span>
                                             </td>
                                             <td className="p-3">
                                                 <div className="flex items-center justify-center space-x-2 space-x-reverse">
-                                                <button onClick={(e) => { e.stopPropagation(); handleEditQuotation(q.id); }} className="p-2 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-100 transition-colors" aria-label="تعديل"><Icons.PencilIcon className="w-5 h-5" /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleOpenDeleteModal(q.id); }} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 transition-colors" aria-label="حذف"><Icons.TrashIcon className="w-5 h-5" /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleEditQuotation(q.id); }} className="p-2 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-100 transition-colors" aria-label={t('common.edit')}><Icons.PencilIcon className="w-5 h-5" /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleOpenDeleteModal(q.id); }} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 transition-colors" aria-label={t('common.delete')}><Icons.TrashIcon className="w-5 h-5" /></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -287,7 +290,7 @@ const Quotations: React.FC<QuotationsProps> = ({ onNavigate }) => {
                                 ) : (
                                     <tr>
                                         <td colSpan={7} className="text-center py-8 text-gray-500">
-                                            {error ? 'لا يمكن عرض البيانات حالياً.' : 'لم يتم العثور على عروض أسعار.'}
+                                            {error ? t('listPage.noDataApiError') : t('quotations.notFound')}
                                         </td>
                                     </tr>
                                 )}
@@ -297,11 +300,11 @@ const Quotations: React.FC<QuotationsProps> = ({ onNavigate }) => {
                     {totalPages > 1 && (
                         <div className="flex justify-between items-center mt-6">
                             <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-                                السابق
+                                {t('common.previous')}
                             </button>
-                            <span className="text-sm text-gray-600">صفحة {currentPage} من {totalPages}</span>
+                            <span className="text-sm text-gray-600">{t('common.page')} {currentPage} {t('common.of')} {totalPages}</span>
                             <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-                                التالي
+                                {t('common.next')}
                             </button>
                         </div>
                     )}
@@ -311,8 +314,8 @@ const Quotations: React.FC<QuotationsProps> = ({ onNavigate }) => {
                 isOpen={isDeleteModalOpen}
                 onClose={handleCloseDeleteModal}
                 onConfirm={handleDeleteQuotation}
-                title="تأكيد حذف عرض السعر"
-                message={`هل أنت متأكد من رغبتك في حذف عرض السعر رقم ${quotationToDelete}؟ لا يمكن التراجع عن هذا الإجراء.`}
+                title={t('quotations.delete.title')}
+                message={t('quotations.delete.message', { id: quotationToDelete || '' })}
             />
         </>
     );
