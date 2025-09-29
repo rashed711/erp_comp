@@ -93,8 +93,8 @@ const suppliersData: Supplier[] = [
 export const getSuppliers = (): Supplier[] => suppliersData;
 
 const productsData: Product[] = [
-    { id: 'PROD-001', name: 'لابتوب ديل XPS 15', description: 'لابتوب عالي الأداء بشاشة 4K', category: 'إلكترونيات', unit: 'No', averagePurchasePrice: 4500, averageSalePrice: 5200, stockQuantity: 50, imageUrl: 'https://picsum.photos/seed/laptop/200/200', createdAt: '2024-01-10 10:00 ص' },
-    { id: 'PROD-002', name: 'اسمنت مقاوم', description: 'اسمنت بورتلاندي مقاوم للكبريتات', category: 'مواد بناء', unit: 'Tone', averagePurchasePrice: 250, averageSalePrice: 280, stockQuantity: 1000, imageUrl: 'https://picsum.photos/seed/cement/200/200', createdAt: '2024-02-05 03:00 م' },
+    { id: 'PROD-001', name: 'لابتوب ديل XPS 15', description: 'لابتوب عالي الأداء بشاشة 4K', category: 'إلكترونيات', unit: 'No', averagePurchasePrice: 4500, salePrice: 5200, averageSalePrice: 5350, stockQuantity: 50, imageUrl: 'https://picsum.photos/seed/laptop/200/200', createdAt: '2024-01-10 10:00 ص' },
+    { id: 'PROD-002', name: 'اسمنت مقاوم', description: 'اسمنت بورتلاندي مقاوم للكبريتات', category: 'مواد بناء', unit: 'Tone', averagePurchasePrice: 250, salePrice: 280, averageSalePrice: 295, stockQuantity: 1000, imageUrl: 'https://picsum.photos/seed/cement/200/200', createdAt: '2024-02-05 03:00 م' },
 ];
 export const getProducts = (): Product[] => productsData;
 

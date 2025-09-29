@@ -25,6 +25,9 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSave, us
     const [role, setRole] = useState('');
     const [status, setStatus] = useState<'active' | 'inactive'>('active');
     const [roles, setRoles] = useState<Role[]>([]);
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordError, setPasswordError] = useState('');
     
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -54,15 +57,18 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSave, us
                 setRole(userToEdit.role);
                 setStatus(userToEdit.status);
                 setImagePreview(avatarUrl);
-                setSelectedFile(null);
             } else {
                 setName('');
                 setEmail('');
                 setRole(roles.length > 0 ? roles[0].name : '');
                 setStatus('active');
                 setImagePreview(null);
-                setSelectedFile(null);
             }
+            // Reset password fields and errors regardless
+            setPassword('');
+            setConfirmPassword('');
+            setPasswordError('');
+            setSelectedFile(null);
         }
     }, [isOpen, userToEdit, isEditMode, roles]);
 
@@ -79,11 +85,25 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSave, us
     };
 
     const handleSaveClick = () => {
+        setPasswordError('');
+        if (!isEditMode && !password) {
+            setPasswordError(t('addEditModal.user.passwordRequired'));
+            return;
+        }
+        if (password !== confirmPassword) {
+            setPasswordError(t('addEditModal.user.passwordsMismatch'));
+            return;
+        }
+
         const formData = new FormData();
         formData.append('name', name);
         formData.append('email', email);
         formData.append('role', role);
         formData.append('status', status);
+
+        if (password) {
+            formData.append('password', password);
+        }
 
         if (selectedFile) {
             formData.append('avatar', selectedFile);
@@ -92,6 +112,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSave, us
         const idToSave = isEditMode ? userToEdit!.id : null;
         
         if (isEditMode) {
+            formData.append('id', userToEdit!.id);
             if (userToEdit?.avatar && !imagePreview) {
                  formData.append('remove_avatar', '1');
             }
@@ -124,6 +145,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSave, us
             onClose={onClose}
             title={isEditMode ? t('addEditModal.user.editTitle') : t('addEditModal.user.addTitle')}
             footer={footer}
+            size="2xl"
         >
             <form onSubmit={(e) => { e.preventDefault(); handleSaveClick(); }} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -135,6 +157,16 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onSave, us
                         <label htmlFor="user-email" className="block text-sm font-medium text-gray-700">{t('addEditModal.user.emailLabel')}</label>
                         <input type="email" id="user-email" value={email} onChange={e => setEmail(e.target.value)} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
                     </div>
+                     <div>
+                        <label htmlFor="user-password" className="block text-sm font-medium text-gray-700">{isEditMode ? t('addEditModal.user.newPasswordLabel') : t('addEditModal.user.passwordLabel')}</label>
+                        <input type="password" id="user-password" value={password} onChange={e => setPassword(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                        {isEditMode && <p className="mt-1 text-xs text-gray-500">{t('addEditModal.user.passwordHint')}</p>}
+                    </div>
+                    <div>
+                        <label htmlFor="user-confirm-password">{t('addEditModal.user.confirmPasswordLabel')}</label>
+                        <input type="password" id="user-confirm-password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                    </div>
+                    {passwordError && <p className="md:col-span-2 text-sm text-red-600">{passwordError}</p>}
                     <div>
                         <label htmlFor="user-role" className="block text-sm font-medium text-gray-700">{t('addEditModal.user.roleLabel')}</label>
                         <select id="user-role" value={role} onChange={e => setRole(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm">

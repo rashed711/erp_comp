@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getSupplierAccountStatement, getSupplierAccountStatementSettings, getCompanySettings } from '../../services/mockApi';
+import { getSupplierAccountStatementSettings, getCompanySettings } from '../../services/mockApi';
 import { AccountStatement, AccountStatementSettingsConfig, AccountStatementFieldConfig, CompanySettingsConfig, AccountStatementEntry } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
 import { useI18n } from '../../i18n/I18nProvider';
 import { TranslationKey } from '../../i18n/translations';
+import { API_BASE_URL } from '../../services/api';
 
 interface SupplierAccountStatementProps {
     supplierId: string;
@@ -18,6 +19,7 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
     const [settings, setSettings] = useState<AccountStatementSettingsConfig | null>(null);
     const [companySettings, setCompanySettings] = useState<CompanySettingsConfig | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<React.ReactNode | null>(null);
 
     const { downloadPdf, isProcessing } = usePdfGenerator({
         elementId: 'printable-statement',
@@ -33,17 +35,66 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
     const [filteredEntries, setFilteredEntries] = useState<AccountStatementEntry[]>([]);
 
     useEffect(() => {
-        const fetchStatement = () => {
-            const data = getSupplierAccountStatement(supplierId);
-            const settingsData = getSupplierAccountStatementSettings();
-            const companyData = getCompanySettings();
-            if (data) setStatement(data);
-            if(settingsData) setSettings(settingsData)
-            if(companyData) setCompanySettings(companyData)
-            setLoading(false);
+        const fetchStatement = async () => {
+            setLoading(true);
+            setError(null);
+            let responseText = '';
+            try {
+                const response = await fetch(`${API_BASE_URL}account_statement.php?supplier_id=${supplierId}`, { 
+                    cache: 'no-cache',
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                responseText = await response.text();
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                         throw new Error(t('accountStatement.notFound'));
+                    }
+                    throw new Error(`HTTP error! status: ${response.status} - ${responseText}`);
+                }
+                const data = JSON.parse(responseText);
+                if(data.error) {
+                    throw new Error(data.error);
+                }
+                setStatement(data);
+
+                const settingsData = getSupplierAccountStatementSettings();
+                const companyData = getCompanySettings();
+                setSettings(settingsData)
+                setCompanySettings(companyData)
+
+            } catch (err: any) {
+                let detailedError: React.ReactNode;
+                const errorMessage = err.message || 'An unexpected error occurred.';
+
+                if (errorMessage.includes('Failed to fetch')) {
+                    detailedError = (
+                        <div>
+                            <p className="font-bold text-lg mb-2">فشل الاتصال بالخادم (Failed to fetch)</p>
+                            <p className="mb-3">هذا الخطأ يعني أن المتصفح لم يتمكن من الوصول إلى ملف <strong>`account_statement.php`</strong> على الخادم. الأسباب المحتملة:</p>
+                            <ul className="list-disc list-inside space-y-1 text-sm text-left bg-gray-100 p-3 rounded-md" dir="ltr">
+                                <li><strong>Server Not Running:</strong> Make sure your XAMPP/Apache server is running.</li>
+                                <li><strong>File Not Found (404):</strong> The file `api/account_statement.php` might be missing or in the wrong location.</li>
+                                <li><strong>Fatal PHP Error:</strong> A critical error in the PHP script is causing the server to crash before sending a response.</li>
+                                <li><strong>CORS Policy:</strong> The server is blocking the request.</li>
+                            </ul>
+                            <p className="mt-4 font-semibold text-gray-800">الحل الموصى به:</p>
+                            <p className="text-sm mt-1">لقد قمت بتحديث ملف `account_statement.php` ليكون أكثر متانة ضد الأخطاء. يرجى استبدال محتواه بالكود الجديد الذي قدمته. سيساعد هذا في تحويل الأخطاء الفادحة إلى رسائل واضحة.</p>
+                        </div>
+                    );
+                } else {
+                     detailedError = <pre className="whitespace-pre-wrap">{errorMessage}</pre>;
+                }
+
+                setError(detailedError);
+                console.error("Fetch Statement Error:", err);
+            } finally {
+                setLoading(false);
+            }
         };
         fetchStatement();
-    }, [supplierId]);
+    }, [supplierId, t]);
 
      useEffect(() => {
         if (statement) {
@@ -123,7 +174,31 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
     };
 
     if (loading) {
-        return <div className="flex items-center justify-center h-screen"><p>{t('accountStatement.loading')}</p></div>;
+        return (
+            <div className="flex justify-center items-center h-screen bg-gray-100 p-4">
+                <div className="text-center">
+                    <svg className="animate-spin h-8 w-8 text-emerald-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p className="text-gray-600">{t('accountStatement.loading')}</p>
+                </div>
+            </div>
+        );
+    }
+    
+    if (error) {
+        return (
+            <div className="flex flex-col justify-center items-center h-screen bg-gray-100 p-4 text-center">
+                 <h2 className="text-xl font-bold text-red-600 mb-4">{t('common.error')}</h2>
+                 <div className="text-red-700 bg-red-100 p-4 rounded-lg max-w-2xl text-left" dir="ltr">
+                    {error}
+                 </div>
+                 <button onClick={onBack} className="mt-6 bg-emerald-600 text-white py-2 px-6 rounded-lg hover:bg-emerald-700">
+                    {t('common.back')}
+                </button>
+            </div>
+        );
     }
 
     if (!statement || !settings || !companySettings) {

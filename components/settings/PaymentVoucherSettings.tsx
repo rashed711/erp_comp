@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import SettingsCard from './shared/SettingsCard';
-import { ImageUploader } from './shared/ImageUploader';
+import ImageUploader from './shared/ImageUploader';
 import { ConfigurableField } from './shared/ConfigurableField';
 import { getPaymentVoucherSettings } from '../../services/mockApi';
 import { TranslationKey } from '../../i18n/translations';
@@ -39,7 +39,8 @@ const PaymentVoucherSettings: React.FC = () => {
                     title={`1. ${t('settings.doc.sectionHeader')}`}
                     description={t('settings.doc.sectionHeaderDescription')}
                 >
-                    <ImageUploader label={t('settings.doc.headerImage')} currentImage="https://picsum.photos/seed/payheader/800/150" />
+                    {/* FIX: Corrected prop name from 'currentImage' to 'currentImageUrl'. */}
+                    <ImageUploader label={t('settings.doc.headerImage')} currentImageUrl="https://picsum.photos/seed/payheader/800/150" />
                 </SettingsCard>
 
                 <SettingsCard
@@ -47,12 +48,13 @@ const PaymentVoucherSettings: React.FC = () => {
                     description={t('settings.doc.sectionDataDescription')}
                 >
                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <ConfigurableField label={t('settings.doc.field.paidTo')} defaultLabel={t('settings.doc.field.paidTo')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.voucherNumber')} defaultLabel={t('settings.doc.field.voucherNumber')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.date')} defaultLabel={t('settings.doc.field.date')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.paymentMethod')} defaultLabel={t('settings.doc.field.paymentMethod')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.amount')} defaultLabel={t('settings.doc.field.amount')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.description')} defaultLabel={t('settings.doc.field.description')} isEnabled={true} />
+                        {/* FIX: Replaced 'defaultLabel' with 'currentLabel' and added 'fieldKey' prop. */}
+                        <ConfigurableField fieldKey="supplierInfo" label={t('settings.doc.field.paidTo')} currentLabel={t('settings.doc.field.paidTo')} isEnabled={true} />
+                        <ConfigurableField fieldKey="voucherNumber" label={t('settings.doc.field.voucherNumber')} currentLabel={t('settings.doc.field.voucherNumber')} isEnabled={true} />
+                        <ConfigurableField fieldKey="date" label={t('settings.doc.field.date')} currentLabel={t('settings.doc.field.date')} isEnabled={true} />
+                        <ConfigurableField fieldKey="paymentMethod" label={t('settings.doc.field.paymentMethod')} currentLabel={t('settings.doc.field.paymentMethod')} isEnabled={true} />
+                        <ConfigurableField fieldKey="amount" label={t('settings.doc.field.amount')} currentLabel={t('settings.doc.field.amount')} isEnabled={true} />
+                        <ConfigurableField fieldKey="notes" label={t('settings.doc.field.description')} currentLabel={t('settings.doc.field.description')} isEnabled={true} />
                     </div>
                 </SettingsCard>
                 
@@ -73,7 +75,8 @@ const PaymentVoucherSettings: React.FC = () => {
                             onChange={(e) => setDefaultNotes(e.target.value)}
                         ></textarea>
                     </div>
-                     <ImageUploader label={t('settings.doc.footerImage')} currentImage="https://picsum.photos/seed/payfooter/800/100" />
+                     {/* FIX: Corrected prop name from 'currentImage' to 'currentImageUrl'. */}
+                     <ImageUploader label={t('settings.doc.footerImage')} currentImageUrl="https://picsum.photos/seed/payfooter/800/100" />
                 </SettingsCard>
                 
                 <div className="pt-4 flex justify-end">

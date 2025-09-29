@@ -185,7 +185,7 @@ const CreateSalesInvoice: React.FC<CreateSalesInvoiceProps> = ({ onBack }) => {
                         if (selectedProduct) {
                             updatedItem.productId = selectedProduct.id;
                             updatedItem.description = selectedProduct.description || selectedProduct.name;
-                            updatedItem.unitPrice = selectedProduct.averageSalePrice;
+                            updatedItem.unitPrice = selectedProduct.salePrice;
                             updatedItem.unit = selectedProduct.unit || 'No';
                         }
                     }

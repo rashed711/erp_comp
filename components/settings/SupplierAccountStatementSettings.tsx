@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import SettingsCard from './shared/SettingsCard';
-import { ImageUploader } from './shared/ImageUploader';
+import ImageUploader from './shared/ImageUploader';
 import { ConfigurableField } from './shared/ConfigurableField';
 import { getSupplierAccountStatementSettings } from '../../services/mockApi';
 import { TranslationKey } from '../../i18n/translations';
@@ -38,7 +38,8 @@ const SupplierAccountStatementSettings: React.FC = () => {
                     title={`1. ${t('settings.doc.sectionHeader')}`}
                     description={t('settings.doc.sectionHeaderDescription')}
                 >
-                    <ImageUploader label={t('settings.doc.headerImage')} currentImage="https://picsum.photos/seed/supstmt-header/800/150" />
+                    {/* FIX: Corrected prop name from 'currentImage' to 'currentImageUrl'. */}
+                    <ImageUploader label={t('settings.doc.headerImage')} currentImageUrl="https://picsum.photos/seed/supstmt-header/800/150" />
                 </SettingsCard>
 
                 <SettingsCard
@@ -46,13 +47,14 @@ const SupplierAccountStatementSettings: React.FC = () => {
                     description={t('settings.doc.sectionDataDescription')}
                 >
                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <ConfigurableField label={t('settings.doc.field.supplierData')} defaultLabel={t('settings.doc.field.supplierData')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.companyData')} defaultLabel={t('settings.doc.field.companyData')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.statementDate')} defaultLabel={t('settings.doc.field.statementDate')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.openingBalance')} defaultLabel={t('settings.doc.field.openingBalance')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.totalDebitSupplier')} defaultLabel={t('settings.doc.field.totalDebitSupplier')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.totalCredit')} defaultLabel={t('settings.doc.field.totalCredit')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.closingBalance')} defaultLabel={t('settings.doc.field.closingBalance')} isEnabled={true} />
+                        {/* FIX: Replaced 'defaultLabel' with 'currentLabel' and added 'fieldKey' prop. */}
+                        <ConfigurableField fieldKey="contactInfo" label={t('settings.doc.field.supplierData')} currentLabel={t('settings.doc.field.supplierData')} isEnabled={true} />
+                        <ConfigurableField fieldKey="ourCompanyInfo" label={t('settings.doc.field.companyData')} currentLabel={t('settings.doc.field.companyData')} isEnabled={true} />
+                        <ConfigurableField fieldKey="statementDate" label={t('settings.doc.field.statementDate')} currentLabel={t('settings.doc.field.statementDate')} isEnabled={true} />
+                        <ConfigurableField fieldKey="openingBalance" label={t('settings.doc.field.openingBalance')} currentLabel={t('settings.doc.field.openingBalance')} isEnabled={true} />
+                        <ConfigurableField fieldKey="totalDebit" label={t('settings.doc.field.totalDebitSupplier')} currentLabel={t('settings.doc.field.totalDebitSupplier')} isEnabled={true} />
+                        <ConfigurableField fieldKey="totalCredit" label={t('settings.doc.field.totalCredit')} currentLabel={t('settings.doc.field.totalCredit')} isEnabled={true} />
+                        <ConfigurableField fieldKey="closingBalance" label={t('settings.doc.field.closingBalance')} currentLabel={t('settings.doc.field.closingBalance')} isEnabled={true} />
                     </div>
                 </SettingsCard>
                 
@@ -73,7 +75,8 @@ const SupplierAccountStatementSettings: React.FC = () => {
                             onChange={(e) => setDefaultNotes(e.target.value)}
                         ></textarea>
                     </div>
-                     <ImageUploader label={t('settings.doc.footerImage')} currentImage="https://picsum.photos/seed/supstmt-footer/800/100" />
+                     {/* FIX: Corrected prop name from 'currentImage' to 'currentImageUrl'. */}
+                     <ImageUploader label={t('settings.doc.footerImage')} currentImageUrl="https://picsum.photos/seed/supstmt-footer/800/100" />
                 </SettingsCard>
                 
                 <div className="pt-4 flex justify-end">

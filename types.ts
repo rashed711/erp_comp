@@ -203,6 +203,7 @@ export interface Product {
   category: string;
   unit?: 'No' | 'Tone' | 'Kg' | 'MT';
   averagePurchasePrice: number;
+  salePrice: number;
   averageSalePrice: number;
   stockQuantity: number;
   imageUrl: string;

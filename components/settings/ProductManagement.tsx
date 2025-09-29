@@ -7,12 +7,8 @@ import ConfirmationModal from '../shared/ConfirmationModal';
 import { API_BASE_URL } from '../../services/api';
 import { useI18n } from '../../i18n/I18nProvider';
 
-// A generic, embedded SVG placeholder for products without an image.
-const DEFAULT_PLACEHOLDER_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NkZTVmYSI+PHBhdGggZD0iTTE5IDNINWMtMS4xIDAtMiAuOS0yIDJ2MTRjMCAxLjEuOSAyIDIgMmgxNGMxLjEgMCAyLS45IDItMlY1YzAtMS4xLS45LTItMi0yem0wIDE2SDVWNWgxNHYxNHptLTUuMDQtNi43MWwtMi43NSAyLjc1bC0yLjE3LTIuMTdMMTYuMTcgMTRMOC40MyA2LjI2TDUgOS42OVYxOUgxOVYxMC41bC0yLjUtMi41eiIvPjwvc3ZnPg==';
-
-
 const ProductManagement: React.FC = () => {
-    const { t } = useI18n();
+    const { t, language } = useI18n();
     const [products, setProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<React.ReactNode | null>(null);
@@ -44,7 +40,7 @@ const ProductManagement: React.FC = () => {
             }
     
             if (!response.ok) {
-                 throw new Error(`NETWORK_ERROR::${response.status}`);
+                 throw new Error(responseText);
             }
             
             const rawData = JSON.parse(responseText);
@@ -59,6 +55,7 @@ const ProductManagement: React.FC = () => {
                 description: p.description,
                 category: p.category,
                 unit: p.unit,
+                salePrice: p.sale_price ? parseFloat(p.sale_price) : 0,
                 averagePurchasePrice: p.average_purchase_price ? parseFloat(p.average_purchase_price) : 0,
                 averageSalePrice: p.average_sale_price ? parseFloat(p.average_sale_price) : 0,
                 stockQuantity: p.stock_quantity ? parseInt(p.stock_quantity, 10) : 0,
@@ -71,64 +68,52 @@ const ProductManagement: React.FC = () => {
             console.error("Fetch Error in ProductManagement:", err);
             let detailedError: React.ReactNode;
             
-            const fullErrorText = (responseText || (err.message || '')).toLowerCase();
-            const isUnknownColumnError = fullErrorText.includes('unknown column');
+            const fullErrorText = responseText || (err instanceof Error ? err.message : String(err));
+            const fullErrorTextLower = fullErrorText.toLowerCase();
 
-            if (isUnknownColumnError) {
-                // Specific error message for "Unknown column"
+            if (fullErrorTextLower.includes("unknown column")) {
                 detailedError = (
                     <div>
-                        <p className="font-bold text-lg mb-2">تم تشخيص المشكلة: خطأ في قاعدة البيانات</p>
-                        <p className="mb-3">
-                            يبدو أن جدول <strong>`products`</strong> في قاعدة البيانات لا يحتوي على جميع الأعمدة المطلوبة. هذا عادة ما يحدث إذا لم يتم تحديث بنية قاعدة البيانات بشكل صحيح.
-                        </p>
-                        
+                        <p className="font-bold text-lg mb-2">{t('error.api.products.diagnostics.dbError.title')}</p>
+                        <p className="mb-3">{t('error.api.products.diagnostics.dbError.description')}</p>
                         <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                            <p className="font-semibold text-red-800">رسالة الخطأ من الخادم:</p>
+                            <p className="font-semibold text-red-800">{t('error.api.products.diagnostics.dbError.serverMessage')}</p>
                             <pre className="mt-2 p-3 bg-gray-700 text-white rounded-md text-xs text-left leading-relaxed whitespace-pre-wrap" dir="ltr">
-                                {responseText || err.message}
+                                {fullErrorText}
                             </pre>
                         </div>
-
-                        <p className="mt-4 font-semibold text-gray-800">الحل الموصى به:</p>
+                        <p className="mt-4 font-semibold text-gray-800">{t('error.api.products.diagnostics.dbError.solution')}</p>
                         <ol className="list-decimal list-inside space-y-2 mt-2 text-sm">
-                            <li>اذهب إلى <strong>phpMyAdmin</strong>.</li>
-                            <li>اختر قاعدة البيانات الخاصة بمشروعك.</li>
-                            <li>احذف جدول `products` (Drop table).</li>
-                            <li>انقر على <strong>"Import"</strong> وقم بإعادة استيراد ملف <strong>`api/setup.sql`</strong> لتصحيح بنية الجدول.</li>
+                            <li>{t('error.api.products.diagnostics.dbError.step1')}</li>
+                            <li>{t('error.api.products.diagnostics.dbError.step2')}</li>
+                            <li>{t('error.api.products.diagnostics.dbError.step3')}</li>
+                            <li>{t('error.api.products.diagnostics.dbError.step4')}</li>
                         </ol>
-                        <p className="text-xs mt-2 text-gray-500">
-                            سيؤدي هذا إلى حل المشكلة. إذا استمرت المشكلة، يرجى مراجعة ملف الخطأ في الخادم.
-                        </p>
+                        <p className="text-xs mt-2 text-gray-500">{t('error.api.products.diagnostics.dbError.note')}</p>
                     </div>
                 );
-            } else if (err instanceof SyntaxError) {
-                // Generic handler for other PHP errors that break JSON
+            } 
+            else if (err instanceof SyntaxError || (responseText && responseText.trim().startsWith('<'))) {
                 detailedError = (
                     <div>
-                        <p className="font-bold text-lg mb-2">خطأ فادح في الخادم (Fatal PHP Error)</p>
-                        <p className="mb-3">
-                            تلقى التطبيق استجابة غير متوقعة من الخادم عند طلب بيانات المنتجات. هذا يعني عادةً وجود خطأ برمجي في ملف <strong>`products.php`</strong> يمنعه من العمل بشكل صحيح.
-                        </p>
+                        <p className="font-bold text-lg mb-2">{t('error.api.products.diagnostics.phpError.title')}</p>
+                        <p className="mb-3">{t('error.api.products.diagnostics.phpError.description')}</p>
                         <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                            <p className="font-semibold text-red-800">رسالة الخطأ الفعلية من الخادم:</p>
+                            <p className="font-semibold text-red-800">{t('error.api.products.diagnostics.phpError.serverMessage')}</p>
                             <pre className="mt-2 p-3 bg-gray-700 text-white rounded-md text-xs text-left leading-relaxed whitespace-pre-wrap" dir="ltr">
-                                {responseText || 'لم يتم استلام أي نص من الخادم. قد يكون الملف فارغًا أو غير موجود.'}
+                                {responseText || t('error.api.products.diagnostics.phpError.noResponse')}
                             </pre>
                         </div>
-                        <p className="mt-4 font-semibold text-gray-800">ماذا تفعل الآن؟</p>
-                        <p className="text-sm mt-1">
-                            الرسالة الموجودة في المربع الأسود أعلاه هي الخطأ الدقيق الذي أرسله PHP. قم بقراءتها بعناية، فهي تخبرك عادةً بنوع الخطأ ورقم السطر في ملف `products.php`. قم بإصلاح هذا الخطأ في الملف ثم حاول مرة أخرى.
-                        </p>
+                        <p className="mt-4 font-semibold text-gray-800">{t('error.api.products.diagnostics.phpError.solution')}</p>
+                        <p className="text-sm mt-1">{t('error.api.saveFailed.fixInstruction', {file: 'products.php'})}</p>
                     </div>
                 );
             } else {
-                // Handler for other errors like network issues
                 detailedError = (
                    <div>
-                       <p className="font-bold text-lg mb-2">حدث خطأ غير متوقع</p>
+                       <p className="font-bold text-lg mb-2">{t('error.api.products.diagnostics.unexpectedError.title')}</p>
                         <pre className="mt-2 p-3 bg-gray-100 text-gray-800 rounded-md text-xs text-left" dir="ltr">
-                          {err.message || 'An unknown error occurred.'}
+                          {fullErrorText || 'An unknown error occurred.'}
                        </pre>
                    </div>
                );
@@ -145,15 +130,18 @@ const ProductManagement: React.FC = () => {
 
     const filteredProducts = useMemo(() => {
         setCurrentPage(1);
+        const sortedProducts = [...products].sort((a, b) => 
+            a.name.localeCompare(b.name, language === 'ar' ? 'ar' : 'en')
+        );
         if (!searchTerm) {
-            return products;
+            return sortedProducts;
         }
-        return products.filter(product =>
+        return sortedProducts.filter(product =>
             product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (product.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             product.category.toLowerCase().includes(searchTerm.toLowerCase())
         );
-    }, [searchTerm, products]);
+    }, [searchTerm, products, language]);
 
     const paginatedProducts = useMemo(() => {
         const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -266,19 +254,6 @@ const ProductManagement: React.FC = () => {
         }
     };
     
-    const siteRoot = API_BASE_URL.replace('/api/', '/');
-    const isExternalUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://');
-
-    const getImageUrl = (dbUrl: string | null | undefined): string => {
-        if (!dbUrl) {
-            return DEFAULT_PLACEHOLDER_IMAGE;
-        }
-        if (isExternalUrl(dbUrl)) {
-            return dbUrl;
-        }
-        return `${siteRoot}${dbUrl}`;
-    };
-
     return (
         <>
             <div className="bg-white p-6 rounded-lg shadow-md w-full">
@@ -321,18 +296,20 @@ const ProductManagement: React.FC = () => {
                     <table className="w-full text-right text-sm">
                         <thead>
                             <tr className="bg-gray-50 border-b text-gray-600 uppercase text-xs">
-                                <th className="p-3 font-semibold text-right">{t('settings.products.table.image')}</th>
                                 <th className="p-3 font-semibold text-right">{t('settings.products.table.name')}</th>
-                                <th className="p-3 font-semibold text-right hidden lg:table-cell">{t('settings.products.table.description')}</th>
-                                <th className="p-3 font-semibold text-right">{t('settings.products.table.purchasePrice')}</th>
+                                <th className="p-3 font-semibold text-right">{t('settings.products.table.description')}</th>
+                                <th className="p-3 font-semibold text-right">{t('settings.products.table.category')}</th>
+                                <th className="p-3 font-semibold text-center">{t('settings.products.table.unit')}</th>
                                 <th className="p-3 font-semibold text-right">{t('settings.products.table.salePrice')}</th>
+                                <th className="p-3 font-semibold text-right">{t('settings.products.table.purchasePrice')}</th>
+                                <th className="p-3 font-semibold text-right">{t('settings.products.table.avgSalePrice')}</th>
                                 <th className="p-3 font-semibold text-center">{t('common.actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="text-gray-700">
                              {isLoading ? (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-8 text-gray-500">
+                                    <td colSpan={8} className="text-center py-8 text-gray-500">
                                         <div className="flex justify-center items-center">
                                             <svg className="animate-spin h-5 w-5 text-emerald-500 ml-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -345,18 +322,13 @@ const ProductManagement: React.FC = () => {
                             ) : paginatedProducts.length > 0 ? (
                                 paginatedProducts.map((product) => (
                                     <tr key={product.id} className="border-b hover:bg-gray-50 transition-colors">
-                                        <td className="p-3 align-middle">
-                                            <img src={getImageUrl(product.imageUrl)} alt={product.name} className="w-12 h-12 rounded-md object-cover" />
-                                        </td>
-                                        <td className="p-3 font-medium text-gray-800 align-middle">
-                                            {product.name}
-                                        </td>
-                                        <td className="p-3 hidden lg:table-cell align-middle max-w-sm">
-                                            <p className="truncate text-gray-600">{product.description || '-'}</p>
-                                        </td>
-                                        <td className="p-3 align-middle">{formatCurrency(product.averagePurchasePrice, 'ر.س')}</td>
-                                        <td className="p-3 align-middle">{formatCurrency(product.averageSalePrice, 'ر.س')}</td>
-
+                                        <td className="p-3 align-middle font-medium text-gray-800">{product.name}</td>
+                                        <td className="p-3 align-middle max-w-xs truncate">{product.description || '-'}</td>
+                                        <td className="p-3 align-middle">{product.category}</td>
+                                        <td className="p-3 align-middle text-center">{product.unit}</td>
+                                        <td className="p-3 align-middle font-semibold text-emerald-600">{formatCurrency(product.salePrice, 'ر.س', false)}</td>
+                                        <td className="p-3 align-middle">{formatCurrency(product.averagePurchasePrice, 'ر.س', false)}</td>
+                                        <td className="p-3 align-middle">{formatCurrency(product.averageSalePrice, 'ر.س', false)}</td>
                                         <td className="p-3 align-middle">
                                             <div className="flex items-center justify-center space-x-2 space-x-reverse">
                                                 <button onClick={() => handleOpenEditModal(product)} className="p-2 text-gray-400 hover:text-yellow-500 rounded-full hover:bg-gray-100 transition-colors"><Icons.PencilIcon className="w-5 h-5" /></button>
@@ -367,7 +339,7 @@ const ProductManagement: React.FC = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-8 text-gray-500">
+                                    <td colSpan={8} className="text-center py-8 text-gray-500">
                                         {error ? t('listPage.noDataApiError') : t('settings.products.notFound')}
                                     </td>
                                 </tr>
@@ -392,7 +364,7 @@ const ProductManagement: React.FC = () => {
                             disabled={currentPage === totalPages}
                             className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                         >
-                            {t('common.next')}
+                           {t('common.next')}
                         </button>
                     </div>
                 )}
@@ -405,7 +377,7 @@ const ProductManagement: React.FC = () => {
                 isSaving={isSaving}
                 error={saveError}
             />
-             <ConfirmationModal
+            <ConfirmationModal
                 isOpen={isDeleteModalOpen}
                 onClose={handleCloseDeleteModal}
                 onConfirm={handleDeleteProduct}

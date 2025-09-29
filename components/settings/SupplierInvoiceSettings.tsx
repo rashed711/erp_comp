@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import SettingsCard from './shared/SettingsCard';
-import { ImageUploader } from './shared/ImageUploader';
+import ImageUploader from './shared/ImageUploader';
 import { ConfigurableField } from './shared/ConfigurableField';
 import { getSupplierInvoiceSettings } from '../../services/mockApi';
 import { TranslationKey } from '../../i18n/translations';
@@ -38,7 +38,8 @@ const SupplierInvoiceSettings: React.FC = () => {
                     title={`1. ${t('settings.doc.sectionHeader')}`}
                     description={t('settings.doc.sectionHeaderDescription')}
                 >
-                    <ImageUploader label={t('settings.doc.headerImage')} currentImage="https://picsum.photos/seed/purheader/800/150" />
+                    {/* FIX: Corrected prop name from 'currentImage' to 'currentImageUrl'. */}
+                    <ImageUploader label={t('settings.doc.headerImage')} currentImageUrl="https://picsum.photos/seed/purheader/800/150" />
                 </SettingsCard>
 
                 <SettingsCard
@@ -46,10 +47,11 @@ const SupplierInvoiceSettings: React.FC = () => {
                     description={t('settings.doc.sectionDataDescription')}
                 >
                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <ConfigurableField label={t('settings.doc.field.invoiceFrom')} defaultLabel={t('settings.doc.field.invoiceFrom')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.supplierInvoiceNumber')} defaultLabel={t('settings.doc.field.supplierInvoiceNumber')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.invoiceDate')} defaultLabel={t('settings.doc.field.invoiceDate')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.dueDate')} defaultLabel={t('settings.doc.field.dueDate')} isEnabled={true} />
+                        {/* FIX: Replaced 'defaultLabel' with 'currentLabel' and added 'fieldKey' prop. */}
+                        <ConfigurableField fieldKey="supplierInfo" label={t('settings.doc.field.invoiceFrom')} currentLabel={t('settings.doc.field.invoiceFrom')} isEnabled={true} />
+                        <ConfigurableField fieldKey="supplierInvoiceNumber" label={t('settings.doc.field.supplierInvoiceNumber')} currentLabel={t('settings.doc.field.supplierInvoiceNumber')} isEnabled={true} />
+                        <ConfigurableField fieldKey="invoiceDate" label={t('settings.doc.field.invoiceDate')} currentLabel={t('settings.doc.field.invoiceDate')} isEnabled={true} />
+                        <ConfigurableField fieldKey="dueDate" label={t('settings.doc.field.dueDate')} currentLabel={t('settings.doc.field.dueDate')} isEnabled={true} />
                     </div>
                 </SettingsCard>
                 
@@ -75,7 +77,8 @@ const SupplierInvoiceSettings: React.FC = () => {
                             onChange={(e) => setDefaultTerms(e.target.value)}
                         ></textarea>
                     </div>
-                     <ImageUploader label={t('settings.doc.footerImage')} currentImage="https://picsum.photos/seed/purfooter/800/100" />
+                     {/* FIX: Corrected prop name from 'currentImage' to 'currentImageUrl'. */}
+                     <ImageUploader label={t('settings.doc.footerImage')} currentImageUrl="https://picsum.photos/seed/purfooter/800/100" />
                 </SettingsCard>
                 
                 <div className="pt-4 flex justify-end">

@@ -48,18 +48,46 @@ const UserManagement: React.FC = () => {
             
             const data = JSON.parse(responseText);
             if (typeof data === 'object' && data !== null && data.error) {
-                throw new Error(data.error);
+                // This catches JSON errors from db.php or other handled PHP errors
+                throw new Error(`PHP_ERROR::${data.error}`);
             }
             setUsers(data);
         } catch (err: any) {
             console.error("Fetch Error:", err);
             let detailedError: React.ReactNode;
             
-            if (err instanceof SyntaxError) {
+            if (err.message.startsWith('PHP_ERROR')) {
+                const phpError = err.message.replace('PHP_ERROR::', '');
+                if (phpError.includes('Base table or view not found') && phpError.includes('users')) {
+                     detailedError = (
+                        <div>
+                            <p className="font-bold text-lg mb-2">تم تشخيص المشكلة: جدول `users` مفقود</p>
+                            <p className="mb-3">
+                                تعذر على الخادم العثور على جدول `users` في قاعدة البيانات. هذا يعني أن الجدول لم يتم إنشاؤه.
+                            </p>
+                            <p className="mt-4 font-semibold text-gray-800">الحل:</p>
+                            <ol className="list-decimal list-inside space-y-2 mt-2 text-sm">
+                                <li>اذهب إلى <strong>phpMyAdmin</strong>.</li>
+                                <li>اختر قاعدة البيانات الخاصة بالمشروع.</li>
+                                <li>اضغط على <strong>"Import"</strong> وقم باستيراد ملف <strong>`api/setup.sql`</strong> لإنشاء جميع الجداول المطلوبة.</li>
+                            </ol>
+                        </div>
+                    );
+                } else {
+                     detailedError = (
+                        <div>
+                            <p className="font-bold text-lg mb-2">خطأ في الخادم (PHP)</p>
+                            <pre className="mt-2 p-3 bg-gray-100 text-red-800 rounded-md text-xs text-left leading-relaxed" dir="ltr">
+                                {phpError}
+                            </pre>
+                        </div>
+                     );
+                }
+            } else if (err instanceof SyntaxError) {
                  detailedError = (
                     <div>
                         <p className="font-bold">فشل تحليل استجابة الخادم (Invalid JSON).</p>
-                        <p className="mt-2">هذا يعني غالبًا وجود خطأ برمجي (Fatal Error) في ملف PHP. رسالة الخطأ من الخادم:</p>
+                        <p className="mt-2">هذا يعني غالبًا وجود خطأ برمجي (Fatal Error) في ملف `users.php`. رسالة الخطأ من الخادم:</p>
                         <pre className="mt-2 p-2 bg-gray-200 text-red-900 rounded-md text-xs text-left" dir="ltr">{responseText}</pre>
                     </div>
                 );
@@ -132,12 +160,29 @@ const UserManagement: React.FC = () => {
         setIsDeleteModalOpen(false);
     };
 
-    const handleDeleteUser = () => {
+    const handleDeleteUser = async () => {
         if (userToDelete) {
-            // Implement API call for deletion
-            console.log("Deleting user:", userToDelete.id);
-            alert("ميزة الحذف قيد الإنشاء.");
-            handleCloseDeleteModal();
+             try {
+                const response = await fetch(`${API_BASE_URL}users.php`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ id: userToDelete.id }),
+                    cache: 'no-cache'
+                });
+
+                const responseText = await response.text();
+                if (!response.ok) throw new Error(`HTTP Error ${response.status}: ${responseText}`);
+                
+                const result = JSON.parse(responseText);
+                if (!result.success) throw new Error(result.error || 'Failed to delete user.');
+
+                await fetchUsers(); // Refetch users to update the list
+            } catch (err) {
+                 const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
+                alert(`Error deleting user: ${errorMessage}`);
+            } finally {
+                handleCloseDeleteModal();
+            }
         }
     };
 
@@ -166,7 +211,7 @@ const UserManagement: React.FC = () => {
             const url = isEdit ? `${API_BASE_URL}users.php?id=${id}` : `${API_BASE_URL}users.php`;
 
             const response = await fetch(url, {
-                method: 'POST',
+                method: 'POST', // Using POST for both create and update with multipart/form-data
                 body: data,
                 cache: 'no-cache'
             });

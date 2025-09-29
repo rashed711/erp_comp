@@ -1,22 +1,153 @@
 import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import SettingsCard from './shared/SettingsCard';
-import { ImageUploader } from './shared/ImageUploader';
+import ImageUploader from './shared/ImageUploader';
 import { ConfigurableField } from './shared/ConfigurableField';
-import { getQuotationSettings } from '../../services/mockApi';
-import { QuotationSettingsConfig } from '../../types';
+import { QuotationSettingsConfig, QuotationFieldConfig } from '../../types';
+import { API_BASE_URL } from '../../services/api';
 import { TranslationKey } from '../../i18n/translations';
+
+const fieldTranslationKeys: Record<QuotationFieldConfig['key'], TranslationKey> = {
+    customerInfo: 'settings.doc.field.customerInfo',
+    contactPerson: 'settings.doc.field.contactPerson',
+    projectName: 'settings.doc.field.projectName',
+    quotationNumber: 'settings.doc.field.quotationNumber',
+    quotationType: 'settings.doc.field.quotationType',
+    date: 'settings.doc.field.date',
+    expiryDate: 'settings.doc.field.expiryDate',
+};
 
 const QuotationSettings: React.FC = () => {
     const { t } = useI18n();
-    const [defaultTerms, setDefaultTerms] = useState('');
+    const [settings, setSettings] = useState<QuotationSettingsConfig | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+    const [headerImageFile, setHeaderImageFile] = useState<File | null>(null);
+    const [footerImageFile, setFooterImageFile] = useState<File | null>(null);
+    const [removeHeaderImage, setRemoveHeaderImage] = useState(false);
+    const [removeFooterImage, setRemoveFooterImage] = useState(false);
 
     useEffect(() => {
-        const settings = getQuotationSettings();
-        if (settings) {
-            setDefaultTerms(t(settings.defaultTerms as TranslationKey));
+        const fetchSettings = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const response = await fetch(`${API_BASE_URL}settings.php?scope=quotation`, { cache: 'no-cache' });
+                if (!response.ok) {
+                    throw new Error('فشل تحميل الإعدادات.');
+                }
+                const data = await response.json();
+                
+                const defaultFields: QuotationFieldConfig[] = [
+                    { key: 'customerInfo', label: 'Billed To', isEnabled: true },
+                    { key: 'contactPerson', label: 'Contact Person', isEnabled: true },
+                    { key: 'projectName', label: 'Project', isEnabled: true },
+                    { key: 'quotationNumber', label: 'Quote #', isEnabled: true },
+                    { key: 'quotationType', label: 'Quote Type', isEnabled: false },
+                    { key: 'date', label: 'Date', isEnabled: true },
+                    { key: 'expiryDate', label: 'Expiry Date', isEnabled: true },
+                ];
+                
+                const finalFields = (data.fields && Array.isArray(data.fields) && data.fields.length > 0) 
+                    ? data.fields 
+                    : defaultFields;
+
+                setSettings({
+                    headerImage: data.headerImage || null,
+                    footerImage: data.footerImage || null,
+                    defaultTerms: data.defaultTerms || '',
+                    fields: finalFields,
+                });
+            } catch (err) {
+                setError(err instanceof Error ? err.message : String(err));
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchSettings();
+    }, []);
+
+    const handleFieldLabelChange = (fieldKey: string, newLabel: string) => {
+        if (!settings) return;
+        const updatedFields = settings.fields.map(field => 
+            field.key === fieldKey ? { ...field, label: newLabel } : field
+        );
+        setSettings({ ...settings, fields: updatedFields });
+    };
+
+    const handleFieldToggle = (fieldKey: string, isEnabled: boolean) => {
+        if (!settings) return;
+        const updatedFields = settings.fields.map(field => 
+            field.key === fieldKey ? { ...field, isEnabled } : field
+        );
+        setSettings({ ...settings, fields: updatedFields });
+    };
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSaving(true);
+        setError(null);
+        setSuccessMessage(null);
+
+        if (!settings) {
+            setError('Settings not loaded.');
+            setIsSaving(false);
+            return;
         }
-    }, [t]);
+
+        const formData = new FormData();
+        formData.append('default_terms', settings.defaultTerms || '');
+        formData.append('fields', JSON.stringify(settings.fields));
+
+        if (headerImageFile) {
+            formData.append('header_image', headerImageFile);
+        } else if (removeHeaderImage) {
+            formData.append('header_image_remove', '1');
+        }
+        if (footerImageFile) {
+            formData.append('footer_image', footerImageFile);
+        } else if (removeFooterImage) {
+            formData.append('footer_image_remove', '1');
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}settings.php?scope=quotation`, {
+                method: 'POST',
+                body: formData,
+            });
+            const result = await response.json();
+            if (!response.ok || result.error) {
+                throw new Error(result.error || 'فشل حفظ الإعدادات.');
+            }
+            setSuccessMessage('تم حفظ الإعدادات بنجاح!');
+            setRemoveHeaderImage(false);
+            setRemoveFooterImage(false);
+            setHeaderImageFile(null);
+            setFooterImageFile(null);
+            
+            const updatedSettingsRes = await fetch(`${API_BASE_URL}settings.php?scope=quotation`);
+            const updatedData = await updatedSettingsRes.json();
+             if (settings) {
+                setSettings({
+                    ...settings,
+                    headerImage: updatedData.headerImage || null,
+                    footerImage: updatedData.footerImage || null,
+                });
+            }
+
+        } catch (err) {
+            setError(err instanceof Error ? err.message : String(err));
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    if (isLoading) {
+        return <div className="bg-white p-6 rounded-lg shadow-md w-full text-center">{t('common.loading')}</div>;
+    }
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-md w-full">
@@ -33,13 +164,25 @@ const QuotationSettings: React.FC = () => {
                 <h2 className="text-xl font-bold text-gray-800">{t('settings.doc.titleQuotations')}</h2>
                 <p className="text-sm text-gray-500 mt-1">{t('settings.doc.descriptionQuotations')}</p>
             </div>
-            <form className="space-y-6">
-                
+            
+            {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert"><p>{error}</p></div>}
+            {successMessage && <div className="bg-emerald-100 border-l-4 border-emerald-500 text-emerald-700 p-4 mb-4" role="alert"><p>{successMessage}</p></div>}
+
+            <form className="space-y-6" onSubmit={handleSave}>
                 <SettingsCard
                     title={`1. ${t('settings.doc.sectionHeader')}`}
                     description={t('settings.doc.sectionHeaderDescription')}
                 >
-                    <ImageUploader label={t('settings.doc.headerImage')} currentImage="https://picsum.photos/seed/header/800/150" />
+                    <ImageUploader 
+                        label={t('settings.doc.headerImage')} 
+                        currentImageUrl={settings?.headerImage || null}
+                        onFileChange={(file) => { setHeaderImageFile(file); setRemoveHeaderImage(false); }}
+                        onRemoveImage={() => { 
+                            setHeaderImageFile(null); 
+                            setRemoveHeaderImage(true);
+                            if(settings) setSettings({...settings, headerImage: null});
+                        }}
+                    />
                 </SettingsCard>
 
                 <SettingsCard
@@ -47,24 +190,22 @@ const QuotationSettings: React.FC = () => {
                     description={t('settings.doc.sectionDataDescription')}
                 >
                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <ConfigurableField label={t('settings.doc.field.customerInfo')} defaultLabel={t('settings.doc.field.customerInfo')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.companyName')} defaultLabel={t('settings.doc.field.companyName')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.contactPerson')} defaultLabel={t('settings.doc.field.contactPerson')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.projectName')} defaultLabel={t('settings.doc.field.projectName')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.quotationNumber')} defaultLabel={t('settings.doc.field.quotationNumber')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.quotationType')} defaultLabel={t('settings.doc.field.quotationType')} isEnabled={false} />
-                        <ConfigurableField label={t('settings.doc.field.date')} defaultLabel={t('settings.doc.field.date')} isEnabled={true} />
-                        <ConfigurableField label={t('settings.doc.field.expiryDate')} defaultLabel={t('settings.doc.field.expiryDate')} isEnabled={true} />
+                        {settings?.fields.map(field => (
+                            <ConfigurableField
+                                key={field.key}
+                                fieldKey={field.key}
+                                label={t(fieldTranslationKeys[field.key])}
+                                currentLabel={field.label}
+                                isEnabled={field.isEnabled}
+                                onLabelChange={handleFieldLabelChange}
+                                onToggle={handleFieldToggle}
+                            />
+                        ))}
                     </div>
                 </SettingsCard>
 
-                 <div className="border border-gray-200 rounded-lg p-6 mb-8 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md">
-                    <h3 className="text-lg font-semibold text-gray-800">3. {t('settings.doc.sectionContent')}</h3>
-                    <p className="text-sm text-gray-500 mt-1">{t('settings.doc.sectionContentDescription')}</p>
-                </div>
-
                 <SettingsCard
-                    title={`4. ${t('settings.doc.sectionFooter')}`}
+                    title={`3. ${t('settings.doc.sectionFooter')}`}
                     description={t('settings.doc.sectionFooterDescription')}
                 >
                     <div>
@@ -76,16 +217,26 @@ const QuotationSettings: React.FC = () => {
                             name="defaultTerms"
                             rows={5}
                             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500"
-                            value={defaultTerms}
-                            onChange={(e) => setDefaultTerms(e.target.value)}
+                            value={settings?.defaultTerms || ''}
+                            onChange={(e) => settings && setSettings({ ...settings, defaultTerms: e.target.value })}
                         ></textarea>
                     </div>
-                     <ImageUploader label={t('settings.doc.footerImage')} currentImage="https://picsum.photos/seed/footer/800/100" />
+                     <ImageUploader 
+                        label={t('settings.doc.footerImage')} 
+                        currentImageUrl={settings?.footerImage || null}
+                        onFileChange={(file) => { setFooterImageFile(file); setRemoveFooterImage(false); }}
+                        onRemoveImage={() => { 
+                            setFooterImageFile(null); 
+                            setRemoveFooterImage(true); 
+                            if(settings) setSettings({...settings, footerImage: null});
+                        }}
+                    />
                 </SettingsCard>
                 
                 <div className="pt-4 flex justify-end">
-                    <button type="submit" className="bg-emerald-600 text-white py-2 px-6 rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-px">
-                        {t('common.saveChanges')}
+                    <button type="submit" disabled={isSaving} className="bg-emerald-600 text-white py-2 px-6 rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-px disabled:bg-emerald-300 flex items-center">
+                         {isSaving && <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                        {isSaving ? t('common.saving') : t('common.saveChanges')}
                     </button>
                 </div>
             </form>

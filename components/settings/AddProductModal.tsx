@@ -22,8 +22,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('General');
     const [unit, setUnit] = useState<'No' | 'Tone' | 'Kg' | 'MT'>('No');
-    const [averagePurchasePrice, setAveragePurchasePrice] = useState('');
-    const [averageSalePrice, setAverageSalePrice] = useState('');
+    const [salePrice, setSalePrice] = useState('');
     
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -44,8 +43,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
                 setDescription(productToEdit.description || '');
                 setCategory(productToEdit.category);
                 setUnit(productToEdit.unit || 'No');
-                setAveragePurchasePrice(String(productToEdit.averagePurchasePrice || ''));
-                setAverageSalePrice(String(productToEdit.averageSalePrice || ''));
+                setSalePrice(String(productToEdit.salePrice || ''));
                 setImagePreview(imageUrl);
                 setSelectedFile(null);
             } else {
@@ -53,8 +51,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
                 setDescription('');
                 setCategory('General');
                 setUnit('No');
-                setAveragePurchasePrice('');
-                setAverageSalePrice('');
+                setSalePrice('');
                 setImagePreview(null);
                 setSelectedFile(null);
             }
@@ -79,8 +76,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
         formData.append('description', description);
         formData.append('category', category);
         formData.append('unit', unit);
-        formData.append('average_purchase_price', averagePurchasePrice || '0.00');
-        formData.append('average_sale_price', averageSalePrice || '0.00');
+        formData.append('sale_price', salePrice || '0.00');
         
         if (selectedFile) {
             formData.append('image', selectedFile);
@@ -89,6 +85,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
         const idToSave = isEditMode ? productToEdit!.id : null;
 
         if (isEditMode) {
+            formData.append('id', productToEdit!.id);
             if (productToEdit?.imageUrl && !imagePreview) {
                  formData.append('remove_image', '1');
             }
@@ -124,24 +121,24 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
             size="2xl"
         >
             <form onSubmit={(e) => { e.preventDefault(); handleSaveClick(); }} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="md:col-span-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="md:col-span-3">
                         <label htmlFor="product-name" className="block text-sm font-medium text-gray-700">{t('addEditModal.product.nameLabel')}</label>
                         <input type="text" id="product-name" value={name} onChange={e => setName(e.target.value)} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
                     </div>
 
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-3">
                         <label htmlFor="product-description" className="block text-sm font-medium text-gray-700">{t('addEditModal.product.descriptionLabel')}</label>
                         <textarea id="product-description" value={description} onChange={e => setDescription(e.target.value)} rows={3} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm"></textarea>
                     </div>
 
-                    <div>
+                    <div className="md:col-span-2">
                         <label htmlFor="product-category" className="block text-sm font-medium text-gray-700">{t('addEditModal.product.categoryLabel')}</label>
                         <input type="text" id="product-category" value={category} onChange={e => setCategory(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
 
                     </div>
 
-                        <div>
+                    <div>
                         <label htmlFor="product-unit" className="block text-sm font-medium text-gray-700">{t('addEditModal.product.unitLabel')}</label>
                         <select id="product-unit" value={unit} onChange={e => setUnit(e.target.value as any)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm">
                             <option>No</option>
@@ -152,16 +149,11 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
                     </div>
                     
                     <div>
-                        <label htmlFor="average-purchase-price" className="block text-sm font-medium text-gray-700">{t('addEditModal.product.purchasePriceLabel')}</label>
-                        <input type="number" id="average-purchase-price" value={averagePurchasePrice} onChange={e => setAveragePurchasePrice(e.target.value)} required step="0.01" placeholder="0.00" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
-                    </div>
-
-                    <div>
-                        <label htmlFor="average-sale-price" className="block text-sm font-medium text-gray-700">{t('addEditModal.product.salePriceLabel')}</label>
-                        <input type="number" id="average-sale-price" value={averageSalePrice} onChange={e => setAverageSalePrice(e.target.value)} required step="0.01" placeholder="0.00" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                        <label htmlFor="sale-price" className="block text-sm font-medium text-gray-700">{t('addEditModal.product.salePriceLabel')}</label>
+                        <input type="number" id="sale-price" value={salePrice} onChange={e => setSalePrice(e.target.value)} required step="0.01" placeholder="0.00" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
                     </div>
                     
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-3">
                         <label className="block text-sm font-medium text-gray-700">{t('addEditModal.product.imageLabel')}</label>
                         <div className="mt-2 flex items-center gap-4">
                             <div className="w-20 h-20 rounded-md bg-gray-100 flex items-center justify-center overflow-hidden border">

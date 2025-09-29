@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Customer, Product, DocumentItem, QuotationSettingsConfig, Quotation, ContactInfo, CurrencySettingsConfig, Currency } from '../../types';
+import { Customer, Product, DocumentItem, QuotationSettingsConfig, CurrencySettingsConfig, Currency } from '../../types';
 import { getQuotationSettings, getCustomers as getMockCustomers, getProducts as getMockProducts, getCurrencySettings } from '../../services/mockApi';
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
@@ -57,15 +57,17 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             setError(null);
             
             let fetchedCustomers: Customer[] = [];
+            let formattedProducts: Product[] = [];
 
             try {
                 // Use Promise.allSettled to attempt fetching all resources
                 const results = await Promise.allSettled([
                     fetch(`${API_BASE_URL}customers.php`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } }),
-                    fetch(`${API_BASE_URL}products.php`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } })
+                    fetch(`${API_BASE_URL}products.php`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } }),
+                    fetch(`${API_BASE_URL}settings.php?scope=quotation`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } })
                 ]);
                 
-                const [customerResult, productResult] = results;
+                const [customerResult, productResult, settingsResult] = results;
                 const fetchErrors: { name: string; text: string }[] = [];
 
                 // Process customer data
@@ -88,14 +90,28 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                     fetchErrors.push({ name: 'customers.php', text: customerResult.reason.message });
                     setCustomers(getMockCustomers());
                 }
-
+            
                 // Process product data
                 if (productResult.status === 'fulfilled') {
                     const response = productResult.value;
                     const text = await response.text();
                     if (response.ok) {
                         try {
-                            setProducts(JSON.parse(text));
+                            const rawProducts = JSON.parse(text);
+                             formattedProducts = rawProducts.map((p: any) => ({
+                                id: String(p.id),
+                                name: p.name,
+                                description: p.description,
+                                category: p.category,
+                                unit: p.unit,
+                                salePrice: p.sale_price ? parseFloat(p.sale_price) : 0,
+                                averagePurchasePrice: p.average_purchase_price ? parseFloat(p.average_purchase_price) : 0,
+                                averageSalePrice: p.average_sale_price ? parseFloat(p.average_sale_price) : 0,
+                                stockQuantity: p.stock_quantity ? parseInt(p.stock_quantity, 10) : 0,
+                                imageUrl: p.image_url,
+                                createdAt: p.created_at,
+                            }));
+                            setProducts(formattedProducts);
                         } catch (e) {
                             fetchErrors.push({ name: 'products.php', text });
                             setProducts(getMockProducts());
@@ -108,6 +124,47 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                     fetchErrors.push({ name: 'products.php', text: productResult.reason.message });
                     setProducts(getMockProducts());
                 }
+
+                let settingsData: QuotationSettingsConfig;
+                let settingsFromApi = false;
+                if (settingsResult.status === 'fulfilled') {
+                    const response = settingsResult.value;
+                    const text = await response.text();
+                    if (response.ok) {
+                        try {
+                            const data = JSON.parse(text);
+                            const mockFields = {
+                                fields: [
+                                    { key: 'customerInfo' as const, label: 'settings.doc.field.customerInfo', isEnabled: true },
+                                    { key: 'contactPerson' as const, label: 'settings.doc.field.contactPerson', isEnabled: true },
+                                    { key: 'projectName' as const, label: 'settings.doc.field.projectName', isEnabled: true },
+                                    { key: 'quotationNumber' as const, label: 'settings.doc.field.quotationNumber', isEnabled: true },
+                                    { key: 'quotationType' as const, label: 'settings.doc.field.quotationType', isEnabled: false },
+                                    { key: 'date' as const, label: 'settings.doc.field.date', isEnabled: true },
+                                    { key: 'expiryDate' as const, label: 'settings.doc.field.expiryDate', isEnabled: true },
+                                ],
+                            };
+                            settingsData = {
+                                headerImage: data.headerImage || null,
+                                footerImage: data.footerImage || null,
+                                defaultTerms: data.defaultTerms || '',
+                                fields: mockFields.fields
+                            };
+                            settingsFromApi = true;
+                        } catch (e) {
+                            fetchErrors.push({ name: 'settings.php?scope=quotation', text });
+                            settingsData = getQuotationSettings();
+                        }
+                    } else {
+                        fetchErrors.push({ name: 'settings.php?scope=quotation', text });
+                        settingsData = getQuotationSettings();
+                    }
+                } else {
+                    fetchErrors.push({ name: 'settings.php?scope=quotation', text: settingsResult.reason.message });
+                    settingsData = getQuotationSettings();
+                }
+                setSettings(settingsData);
+
 
                 if (fetchErrors.length > 0) {
                      const detailedError = (
@@ -131,56 +188,56 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                     setError({ message: detailedError, isWarning: true });
                 }
 
-                const settingsData = getQuotationSettings();
-                setSettings(settingsData);
-                // FIX: Use the translation key directly from settings
-                if (settingsData) setTerms(t(settingsData.defaultTerms as TranslationKey));
-
                 const currencySettingsData = getCurrencySettings();
                 setCurrencySettings(currencySettingsData);
+                const defaultCurrency = currencySettingsData.currencies.find(c => c.code === currencySettingsData.defaultCurrency);
 
-                if (isEditMode && quotationId) {
-                    if (fetchErrors.length > 0) {
-                        throw new Error(t('docCreate.loadError'));
-                    }
-                    const quotationRes = await fetch(`${API_BASE_URL}quotations.php?id=${quotationId}`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } });
-                    if (!quotationRes.ok) throw new Error(t('docCreate.loadError'));
+                // If edit mode, fetch existing quotation
+                if (isEditMode) {
+                    const quotationRes = await fetch(`${API_BASE_URL}quotations.php?id=${quotationId}`, { cache: 'no-cache' });
+                    if (!quotationRes.ok) throw new Error(t('docCreate.saveError'));
+                    const quotationToEditData = await quotationRes.json();
                     
-                    const quotationToEdit = await quotationRes.json();
-                    if (quotationToEdit && quotationToEdit.id) {
-                        const customer = fetchedCustomers.find(c => c.id === String(quotationToEdit.customer_id)) || null;
-                        setSelectedCustomer(customer);
-                        setCustomerInput(customer ? customer.name : '');
-                        setContactPerson(quotationToEdit.contact_person || '');
-                        setProjectName(quotationToEdit.project_name || '');
-                        setDate(quotationToEdit.date);
-                        setExpiryDate(quotationToEdit.expiry_date);
-                        setItems(quotationToEdit.items.map((item: any) => ({
-                            id: Number(item.id),
-                            productId: item.product_id,
-                            productName: item.product_name,
+                    const customer = fetchedCustomers.find(c => c.id === String(quotationToEditData.customer_id)) || null;
+
+                    setSelectedCustomer(customer);
+                    setCustomerInput(customer ? customer.name : (quotationToEditData.customer_name || ''));
+                    setContactPerson(quotationToEditData.contact_person || '');
+                    setProjectName(quotationToEditData.project_name || '');
+                    setDate(quotationToEditData.date);
+                    setExpiryDate(quotationToEditData.expiry_date);
+                    
+                    const mappedItems: DocumentItem[] = quotationToEditData.items.map((item: any) => {
+                        const product = formattedProducts.find(p => p.id === String(item.product_id));
+                        return {
+                            id: Math.random(),
+                            productId: String(item.product_id),
+                            productName: product ? product.name : '',
                             description: item.description,
-                            quantity: Number(item.quantity),
-                            unitPrice: Number(item.unit_price),
-                            total: Number(item.total),
-                            unit: item.unit
-                        } as DocumentItem)));
-                        setNotes(quotationToEdit.notes || '');
-                        setTerms(quotationToEdit.terms || t(settingsData?.defaultTerms as TranslationKey) || '');
-                        setDiscountValue(Number(quotationToEdit.discount_value));
-                        setDiscountType(quotationToEdit.discount_type);
-                        setIsTaxable(Number(quotationToEdit.tax_amount) > 0);
-                        const currency = currencySettingsData.currencies.find(c => c.code === quotationToEdit.currency_code);
-                        setSelectedCurrency(currency || null);
-                    } else {
-                        throw new Error(t('quotations.detail.notFound'));
-                    }
+                            quantity: parseFloat(item.quantity),
+                            unitPrice: parseFloat(item.unit_price),
+                            total: parseFloat(item.total),
+                            unit: item.unit || (product ? product.unit : 'No'),
+                        };
+                    });
+                    setItems(mappedItems);
+                    
+                    setNotes(quotationToEditData.notes || '');
+                    setTerms(quotationToEditData.terms || (settingsFromApi ? settingsData.defaultTerms : t(settingsData.defaultTerms as TranslationKey)));
+                    
+                    const currency = currencySettingsData.currencies.find(c => c.code === quotationToEditData.currency_code);
+                    setSelectedCurrency(currency || defaultCurrency || null);
+                    setDiscountValue(parseFloat(quotationToEditData.discount_value));
+                    setDiscountType(quotationToEditData.discount_type);
+                    setIsTaxable(parseFloat(quotationToEditData.tax_amount) > 0);
+
                 } else {
-                    const defaultCurrency = currencySettingsData.currencies.find(c => c.code === currencySettingsData.defaultCurrency);
+                    setTerms(settingsFromApi ? settingsData.defaultTerms : t(settingsData.defaultTerms as TranslationKey));
                     setSelectedCurrency(defaultCurrency || null);
                 }
+
             } catch (err) {
-                 const errorMessage = err instanceof Error ? err.message : t('error.api.unexpectedError');
+                 const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
                  console.error("Error during initial load:", err);
                  setError({ message: `${t('docCreate.loadError')}: ${errorMessage}`, isWarning: false });
             } finally {
@@ -206,7 +263,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             setSelectedCustomer(null);
         }
     };
-
+    
     const handleAddItem = () => {
         const newItem: DocumentItem = {
             id: Date.now(),
@@ -229,15 +286,17 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             return prevItems.map(item => {
                 if (item.id === id) {
                     const updatedItem = { ...item, [field]: value };
+
                     if (field === 'productName') {
                         const selectedProduct = products.find(p => p.name === value);
                         if (selectedProduct) {
                             updatedItem.productId = selectedProduct.id;
                             updatedItem.description = selectedProduct.description || selectedProduct.name;
-                            updatedItem.unitPrice = selectedProduct.averageSalePrice;
+                            updatedItem.unitPrice = selectedProduct.salePrice;
                             updatedItem.unit = selectedProduct.unit || 'No';
                         }
                     }
+
                     if (['quantity', 'unitPrice', 'productName'].includes(field)) {
                         updatedItem.total = (Number(updatedItem.quantity) || 0) * (Number(updatedItem.unitPrice) || 0);
                     }
@@ -271,7 +330,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
         const grandTotal = totalAfterDiscount + calculatedTax;
         return { subtotal, discountAmount: calculatedDiscount, taxAmount: calculatedTax, total: grandTotal };
     }, [items, discountValue, discountType, isTaxable, taxRate]);
-
+    
     const handleSave = async () => {
         if (error?.isWarning) {
             alert(t('docCreate.apiWarning'));
@@ -282,11 +341,12 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             return;
         }
         const validItems = items.filter(item => item.productName && item.productName.trim() !== '' && item.productId);
+
         if (validItems.length === 0) {
             alert(t('docCreate.saveAlert.noItems'));
             return;
         }
-    
+
         setIsSaving(true);
         if (error && !error.isWarning) setError(null);
         
@@ -329,7 +389,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             responseText = await response.text();
     
             if (!response.ok) {
-                throw new Error(t('error.api.requestFailed'));
+                throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}).`);
             }
     
             const result = JSON.parse(responseText);
@@ -338,7 +398,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                 alert(isEditMode ? t('docCreate.saveSuccess.quotation.edit') : t('docCreate.saveSuccess.quotation.create'));
                 onBack();
             } else {
-                throw new Error(result.error || t('docCreate.saveError'));
+                throw new Error(result.error || 'فشل حفظ عرض السعر.');
             }
     
         } catch (err) {
@@ -347,20 +407,18 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             if (err instanceof SyntaxError) {
                 detailedError = (
                     <div>
-                        <p className="font-bold">{t('error.api.saveFailed.phpError', {item: t('sidebar.quotations')})}</p>
+                        <p className="font-bold">{t('error.api.saveFailed.phpError', {item: 'عرض السعر'})}</p>
                         <p className="mt-2 text-sm">{t('error.api.saveFailed.phpErrorDescription', {file: 'quotations.php'})}</p>
                         <p className="mt-3 font-semibold text-red-700">{t('error.api.saveFailed.serverResponseMessage')}</p>
                         <pre className="mt-2 p-3 bg-gray-800 text-white rounded-md text-xs text-left whitespace-pre-wrap" dir="ltr">{responseText.trim() || 'No response body from server.'}</pre>
-                        <p className="mt-3 text-sm"><strong>{t('error.api.saveFailed.fixInstruction', {file: 'quotations.php'})}</strong></p>
+                        <p className="mt-3 text-sm">{t('error.api.saveFailed.fixInstruction', {file: 'quotations.php'})}</p>
                     </div>
                 );
             } else {
-                const errorMessage = err instanceof Error ? err.message : t('error.api.unexpectedError');
+                const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
                 detailedError = (
                     <div>
-                        <p className="font-bold">{t('error.api.saveFailed.serverError', {item: t('sidebar.quotations')})}</p>
-                        <p className="mt-2 text-sm">{t('error.api.saveFailed.serverErrorDescription')}</p>
-                        <p className="mt-3 font-semibold text-red-700">الرسالة الفنية:</p>
+                        <p className="font-bold">{t('error.api.saveFailed.serverError', {item: 'عرض السعر'})}</p>
                         <pre className="mt-2 p-3 bg-gray-100 text-gray-800 rounded-md text-xs text-left" dir="ltr">{errorMessage}</pre>
                     </div>
                 );
@@ -388,7 +446,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
          return (
             <div className="flex flex-col justify-center items-center h-screen bg-gray-100 p-4 text-center">
                  <h2 className="text-xl font-bold text-red-600 mb-4">{t('docCreate.loadError')}</h2>
-                 <div className="text-red-800 bg-red-100 p-4 rounded-lg">{error.message}</div>
+                 <div className="text-red-800 bg-red-100 p-4 rounded-lg max-w-2xl">{error.message}</div>
                  <button onClick={onBack} className="mt-6 bg-emerald-600 text-white py-2 px-6 rounded-lg hover:bg-emerald-700">
                     {t('common.back')}
                 </button>
@@ -405,7 +463,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                           <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" style={{ transform: 'scaleX(-1)' }} />
                       </button>
                       <div>
-                          <h1 className="text-lg sm:text-xl font-bold text-gray-800">{isEditMode ? t('quotations.edit.title', {id: quotationId || ''}) : t('quotations.create.title')}</h1>
+                          <h1 className="text-lg sm:text-xl font-bold text-gray-800">{isEditMode ? t('quotations.edit.title', {id: quotationId}) : t('quotations.create.title')}</h1>
                           <p className="text-xs sm:text-sm text-gray-500">{t('quotations.create.description')}</p>
                       </div>
                   </div>
@@ -445,11 +503,11 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                           </div>
                           <div>
                               <label htmlFor="contactPerson" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.contactPersonLabel')}</label>
-                              <input type="text" id="contactPerson" value={contactPerson} onChange={e => setContactPerson(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md" />
+                              <input type="text" id="contactPerson" value={contactPerson} onChange={e => setContactPerson(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"/>
                           </div>
-                          <div>
+                           <div>
                               <label htmlFor="projectName" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.projectNameLabel')}</label>
-                              <input type="text" id="projectName" value={projectName} onChange={e => setProjectName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md" />
+                              <input type="text" id="projectName" value={projectName} onChange={e => setProjectName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"/>
                           </div>
                           <div>
                               <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.dateLabel')}</label>
@@ -507,8 +565,14 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                   <div className="bg-white p-6 rounded-lg shadow-md">
                       <div className="flex flex-col-reverse lg:flex-row justify-between gap-8">
                           <div className="w-full lg:w-1/2 space-y-4">
-                              <div><label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">{t('common.notes')}</label><textarea id="notes" rows={2} value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"></textarea></div>
-                              <div><label htmlFor="terms" className="block text-sm font-medium text-gray-700 mb-2">{t('common.termsAndConditions')}</label><textarea id="terms" rows={4} value={terms} onChange={e => setTerms(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"></textarea></div>
+                              <div>
+                                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">{t('common.notes')}</label>
+                                <textarea id="notes" rows={4} value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"></textarea>
+                              </div>
+                              <div>
+                                  <label htmlFor="terms" className="block text-sm font-medium text-gray-700 mb-2">{t('common.termsAndConditions')}</label>
+                                  <textarea id="terms" rows={4} value={terms} onChange={e => setTerms(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"></textarea>
+                              </div>
                           </div>
                           <div className="w-full lg:w-1/2">
                               <div className="bg-gray-50 p-6 rounded-lg border space-y-4">
