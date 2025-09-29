@@ -5,6 +5,7 @@ import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { useI18n } from '../../i18n/I18nProvider';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
+import { TranslationKey } from '../../i18n/translations';
 
 interface QuotationDetailProps {
     quotationId: string;
@@ -20,7 +21,7 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
 
     const { downloadPdf, sharePdf, isProcessing } = usePdfGenerator({
         elementId: 'printable-quotation',
-        fileName: `Quotation-${quotation?.id}`
+        fileName: `${t('pdf.fileName.quotation')}-${quotation?.id}`
     });
 
     useEffect(() => {
@@ -48,7 +49,7 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
             contactPerson: { value: quotation.contactPerson || '-' },
             projectName: { value: quotation.projectName || '-' },
             quotationNumber: { value: quotation.id },
-            quotationType: { value: 'عرض سعر قياسي' }, // Mocked value
+            quotationType: { value: t('quotations.detail.standardType') }, // Mocked value
             date: { value: quotation.date },
             expiryDate: { value: quotation.expiryDate }
         };
@@ -64,7 +65,7 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
                     if (field.key === 'customerInfo') {
                         return (
                              <div key={field.key} className="md:col-span-1 flex justify-between items-start border-b pb-2">
-                                <p className="font-semibold text-gray-600">اسم الشركة:</p>
+                                <p className="font-semibold text-gray-600">{t('quotations.detail.companyName')}:</p>
                                 <p className="text-gray-800 font-medium text-left">{data.value}</p>
                              </div>
                         )
@@ -72,7 +73,7 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
 
                     return (
                         <div key={field.key} className="md:col-span-1 flex justify-between items-start border-b pb-2">
-                           <p className="font-semibold text-gray-600">{field.label}:</p>
+                           <p className="font-semibold text-gray-600">{t(field.label as TranslationKey)}:</p>
                            <p className="text-gray-800 font-medium text-left">{data.value}</p>
                         </div>
                     );
@@ -199,7 +200,7 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
                          {settings.defaultTerms && (
                             <div className="mb-8">
                                 <h3 className="font-semibold text-gray-800 mb-1">{t('common.termsAndConditions')}:</h3>
-                                <p className="whitespace-pre-wrap">{settings.defaultTerms}</p>
+                                <p className="whitespace-pre-wrap">{t(settings.defaultTerms as TranslationKey)}</p>
                             </div>
                         )}
                         {/* Dynamic Footer Image */}

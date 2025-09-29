@@ -1,11 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import SettingsCard from './shared/SettingsCard';
 import { ImageUploader } from './shared/ImageUploader';
 import { ConfigurableField } from './shared/ConfigurableField';
+import { getSalesInvoiceSettings } from '../../services/mockApi';
+import { TranslationKey } from '../../i18n/translations';
 
 const SalesInvoiceSettings: React.FC = () => {
     const { t } = useI18n();
+    const [defaultTerms, setDefaultTerms] = useState('');
+
+    useEffect(() => {
+        const settings = getSalesInvoiceSettings();
+        if (settings) {
+            setDefaultTerms(t(settings.defaultTerms as TranslationKey));
+        }
+    }, [t]);
+
     return (
         <div className="bg-white p-6 rounded-lg shadow-md w-full">
             <style>{`
@@ -60,7 +71,8 @@ const SalesInvoiceSettings: React.FC = () => {
                             name="defaultTerms"
                             rows={5}
                             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500"
-                            defaultValue="يجب سداد هذه الفاتورة في غضون 30 يومًا من تاريخ الإصدار. سيتم تطبيق رسوم تأخير بنسبة 1.5% شهريًا على الأرصدة غير المدفوعة."
+                            value={defaultTerms}
+                            onChange={(e) => setDefaultTerms(e.target.value)}
                         ></textarea>
                     </div>
                      <ImageUploader label={t('settings.doc.footerImage')} currentImage="https://picsum.photos/seed/invfooter/800/100" />

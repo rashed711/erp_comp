@@ -1,11 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import SettingsCard from './shared/SettingsCard';
 import { ImageUploader } from './shared/ImageUploader';
 import { ConfigurableField } from './shared/ConfigurableField';
+import { getQuotationSettings } from '../../services/mockApi';
+import { QuotationSettingsConfig } from '../../types';
+import { TranslationKey } from '../../i18n/translations';
 
 const QuotationSettings: React.FC = () => {
     const { t } = useI18n();
+    const [defaultTerms, setDefaultTerms] = useState('');
+
+    useEffect(() => {
+        const settings = getQuotationSettings();
+        if (settings) {
+            setDefaultTerms(t(settings.defaultTerms as TranslationKey));
+        }
+    }, [t]);
+
     return (
         <div className="bg-white p-6 rounded-lg shadow-md w-full">
             <style>{`
@@ -64,7 +76,8 @@ const QuotationSettings: React.FC = () => {
                             name="defaultTerms"
                             rows={5}
                             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500"
-                            defaultValue="يتم دفع 50% مقدماً والباقي عند التسليم. العرض سارٍ لمدة 30 يوماً."
+                            value={defaultTerms}
+                            onChange={(e) => setDefaultTerms(e.target.value)}
                         ></textarea>
                     </div>
                      <ImageUploader label={t('settings.doc.footerImage')} currentImage="https://picsum.photos/seed/footer/800/100" />

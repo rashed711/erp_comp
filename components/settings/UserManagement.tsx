@@ -14,7 +14,7 @@ const UserManagement: React.FC = () => {
     const { t } = useI18n();
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<React.ReactNode | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -29,15 +29,52 @@ const UserManagement: React.FC = () => {
     const fetchUsers = async () => {
         setIsLoading(true);
         setError(null);
+        let responseText = '';
         try {
-            const response = await fetch(`${API_BASE_URL}users.php`, { cache: 'no-cache' });
-            if (!response.ok) throw new Error('فشل في جلب بيانات المستخدمين.');
-            const data = await response.json();
-            if (data.error) throw new Error(data.error);
+            const response = await fetch(`${API_BASE_URL}users.php`, { 
+                cache: 'no-cache',
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            responseText = await response.text();
+            
+            if (responseText.includes('aes.js') && responseText.includes('document.cookie')) {
+                throw new Error('HOSTING_SECURITY_CHALLENGE');
+            }
+            
+            if (!response.ok) {
+                throw new Error(`NETWORK_ERROR::${response.status}`);
+            }
+            
+            const data = JSON.parse(responseText);
+            if (typeof data === 'object' && data !== null && data.error) {
+                throw new Error(data.error);
+            }
             setUsers(data);
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
-            setError(errorMessage);
+        } catch (err: any) {
+            console.error("Fetch Error:", err);
+            let detailedError: React.ReactNode;
+            
+            if (err instanceof SyntaxError) {
+                 detailedError = (
+                    <div>
+                        <p className="font-bold">فشل تحليل استجابة الخادم (Invalid JSON).</p>
+                        <p className="mt-2">هذا يعني غالبًا وجود خطأ برمجي (Fatal Error) في ملف PHP. رسالة الخطأ من الخادم:</p>
+                        <pre className="mt-2 p-2 bg-gray-200 text-red-900 rounded-md text-xs text-left" dir="ltr">{responseText}</pre>
+                    </div>
+                );
+            } else {
+                 detailedError = (
+                     <div>
+                        <p className="font-bold text-lg mb-2">فشل الاتصال بالخادم</p>
+                        <p className="mb-3">حدث خطأ غير متوقع. يرجى مراجعة تفاصيل الخطأ أدناه:</p>
+                        <pre className="mt-2 p-3 bg-gray-100 text-gray-800 rounded-md text-xs text-left leading-relaxed" dir="ltr">
+                            {err.message}
+                        </pre>
+                    </div>
+                );
+            }
+            setError(detailedError);
         } finally {
             setIsLoading(false);
         }

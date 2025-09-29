@@ -165,7 +165,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onSa
                         <label className="block text-sm font-medium text-gray-700">{t('addEditModal.product.imageLabel')}</label>
                         <div className="mt-2 flex items-center gap-4">
                             <div className="w-20 h-20 rounded-md bg-gray-100 flex items-center justify-center overflow-hidden border">
-                                <img src={imagePreview || DEFAULT_PLACEHOLDER_IMAGE} alt="معاينة" className="w-full h-full object-cover" />
+                                <img src={imagePreview || DEFAULT_PLACEHOLDER_IMAGE} alt={t('settings.doc.previewAlt')} className="w-full h-full object-cover" />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <input 

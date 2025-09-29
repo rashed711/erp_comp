@@ -1,5 +1,6 @@
 export const translations = {
   // General / Common
+  'common.systemTitle': { ar: 'نظام إدارة الأعمال', en: 'Business Management System' },
   'common.cancel': { ar: 'إلغاء', en: 'Cancel' },
   'common.save': { ar: 'حفظ', en: 'Save' },
   'common.saveChanges': { ar: 'حفظ التغييرات', en: 'Save Changes' },
@@ -27,6 +28,20 @@ export const translations = {
   'common.share': { ar: 'مشاركة', en: 'Share' },
   'common.from': { ar: 'من', en: 'From' },
   'common.to': { ar: 'إلى', en: 'To' },
+  'common.language.toggle': { ar: 'English', en: 'العربية' },
+  'common.featureUnderDev': { ar: 'هذه الميزة قيد التطوير حاليًا.', en: 'This feature is currently under development.' },
+
+  // PDF Generator
+  'pdf.error': { ar: 'حدث خطأ أثناء معالجة ملف PDF.', en: 'An error occurred while processing the PDF.' },
+  'pdf.shareNotSupported': { ar: 'المشاركة غير مدعومة في هذا المتصفح.', en: 'Sharing is not supported on this browser.' },
+  'pdf.shareFileNotSupported': { ar: 'متصفحك لا يدعم مشاركة الملفات.', en: 'Your browser does not support sharing files.' },
+  'pdf.fileName.quotation': { ar: 'عرض-سعر', en: 'Quotation' },
+  'pdf.fileName.invoice': { ar: 'فاتورة', en: 'Invoice' },
+  'pdf.fileName.supplierInvoice': { ar: 'فاتورة-مورد', en: 'Supplier-Invoice' },
+  'pdf.fileName.customerStatement': { ar: 'كشف-حساب-عميل', en: 'Customer-Statement' },
+  'pdf.fileName.supplierStatement': { ar: 'كشف-حساب-مورد', en: 'Supplier-Statement' },
+  'pdf.fileName.receipt': { ar: 'سند-قبض', en: 'Receipt' },
+  'pdf.fileName.paymentVoucher': { ar: 'سند-صرف', en: 'Payment-Voucher' },
   
   // Sidebar
   'sidebar.main': { ar: 'الرئيسية', en: 'Dashboard' },
@@ -128,10 +143,14 @@ export const translations = {
   'quotations.notFound': { ar: 'لم يتم العثور على عروض أسعار مطابقة.', en: 'No matching quotations found.' },
   'quotations.delete.title': { ar: 'تأكيد حذف عرض السعر', en: 'Confirm Quotation Deletion' },
   'quotations.delete.message': { ar: 'هل أنت متأكد من رغبتك في حذف عرض السعر رقم {id}؟ لا يمكن التراجع عن هذا الإجراء.', en: 'Are you sure you want to delete quotation #{id}? This action cannot be undone.' },
+  'quotations.delete.error': { ar: 'خطأ في حذف عرض السعر', en: 'Error deleting quotation' },
   'quotations.delete.featureNotice': { ar: 'ميزة الحذف قيد التطوير.', en: 'Delete feature is under development.' },
   'quotations.detail.title': { ar: 'عرض سعر #{id}', en: 'Quotation #{id}' },
   'quotations.detail.loading': { ar: 'جاري تحميل عرض السعر...', en: 'Loading quotation...' },
   'quotations.detail.notFound': { ar: 'لم يتم العثور على عرض السعر أو الإعدادات الخاصة به.', en: 'Quotation or its settings could not be found.' },
+  'quotations.detailsTitle': { ar: 'تفاصيل عرض السعر', en: 'Quotation Details' },
+  'quotations.detail.companyName': { ar: 'اسم الشركة', en: 'Company Name' },
+  'quotations.detail.standardType': { ar: 'عرض سعر قياسي', en: 'Standard Quotation' },
   
   // Sales Invoices
   'salesInvoices.title': { ar: 'فواتير المبيعات', en: 'Sales Invoices' },
@@ -148,6 +167,7 @@ export const translations = {
   'salesInvoices.detail.notFound': { ar: 'لم يتم العثور على الفاتورة أو الإعدادات الخاصة بها.', en: 'Invoice or its settings could not be found.' },
   'salesInvoices.create.title': { ar: 'إنشاء فاتورة جديدة', en: 'Create New Invoice' },
   'salesInvoices.create.description': { ar: 'املأ التفاصيل أدناه لحفظ الفاتورة', en: 'Fill in the details below to save the invoice' },
+  'salesInvoices.detailsTitle': { ar: 'تفاصيل الفاتورة', en: 'Invoice Details' },
 
   // Supplier Invoices
   'supplierInvoices.title': { ar: 'فواتير المشتريات', en: 'Purchase Invoices' },
@@ -177,6 +197,7 @@ export const translations = {
   'receipts.notFound': { ar: 'لم يتم العثور على سندات مطابقة.', en: 'No matching receipts found.' },
   'receipts.delete.title': { ar: 'تأكيد حذف سند القبض', en: 'Confirm Receipt Deletion' },
   'receipts.delete.message': { ar: 'هل أنت متأكد من رغبتك في حذف سند القبض رقم {id}؟ لا يمكن التراجع عن هذا الإجراء.', en: 'Are you sure you want to delete receipt #{id}? This action cannot be undone.' },
+  'receipts.delete.error': { ar: 'خطأ في حذف السند', en: 'Error deleting receipt' },
   'receipts.detail.title': { ar: 'سند قبض #{id}', en: 'Receipt #{id}' },
   'receipts.detail.loading': { ar: 'جاري تحميل السند...', en: 'Loading receipt...' },
   'receipts.detail.notFound': { ar: 'لم يتم العثور على سند القبض أو إعداداته.', en: 'Receipt or its settings could not be found.' },
@@ -193,6 +214,7 @@ export const translations = {
   'paymentVouchers.notFound': { ar: 'لم يتم العثور على سندات مطابقة.', en: 'No matching vouchers found.' },
   'paymentVouchers.delete.title': { ar: 'تأكيد حذف سند الصرف', en: 'Confirm Voucher Deletion' },
   'paymentVouchers.delete.message': { ar: 'هل أنت متأكد من رغبتك في حذف سند الصرف رقم {id}؟ لا يمكن التراجع عن هذا الإجراء.', en: 'Are you sure you want to delete voucher #{id}? This action cannot be undone.' },
+  'paymentVouchers.delete.error': { ar: 'خطأ في حذف السند', en: 'Error deleting voucher' },
   'paymentVouchers.detail.title': { ar: 'سند صرف #{id}', en: 'Payment Voucher #{id}' },
   'paymentVouchers.detail.loading': { ar: 'جاري تحميل السند...', en: 'Loading voucher...' },
   'paymentVouchers.detail.notFound': { ar: 'لم يتم العثور على سند الصرف أو إعداداته.', en: 'Voucher or its settings could not be found.' },
@@ -213,6 +235,7 @@ export const translations = {
   'customers.notFoundDB': { ar: 'لا يوجد عملاء في قاعدة البيانات. يمكنك إضافة عميل جديد.', en: 'No customers in the database. You can add a new one.' },
   'customers.delete.title': { ar: 'تأكيد حذف العميل', en: 'Confirm Customer Deletion' },
   'customers.delete.message': { ar: 'هل أنت متأكد من رغبتك في حذف العميل "{name}"؟ سيتم حذف جميع البيانات المرتبطة به.', en: 'Are you sure you want to delete the customer "{name}"? All related data will be removed.' },
+  'customers.delete.error': { ar: 'خطأ في حذف العميل', en: 'Error deleting customer' },
   
   // Suppliers
   'suppliers.title': { ar: 'الموردين', en: 'Suppliers' },
@@ -223,6 +246,7 @@ export const translations = {
   'suppliers.notFoundDB': { ar: 'لا يوجد موردين في قاعدة البيانات. يمكنك إضافة مورد جديد.', en: 'No suppliers in the database. You can add a new one.' },
   'suppliers.delete.title': { ar: 'تأكيد حذف المورد', en: 'Confirm Supplier Deletion' },
   'suppliers.delete.message': { ar: 'هل أنت متأكد من رغبتك في حذف المورد "{name}"؟ سيتم حذف جميع البيانات المرتبطة به.', en: 'Are you sure you want to delete the supplier "{name}"? All related data will be removed.' },
+  'suppliers.delete.error': { ar: 'خطأ في حذف المورد', en: 'Error deleting supplier' },
   
   // Account Statements
   'accountStatement.customer.title': { ar: 'كشف حساب عميل', en: 'Customer Account Statement' },
@@ -305,13 +329,20 @@ export const translations = {
   'docCreate.saveAlert.selectCustomer': { ar: 'الرجاء اختيار عميل صحيح.', en: 'Please select a valid customer.' },
   'docCreate.saveAlert.selectSupplier': { ar: 'الرجاء اختيار مورد صحيح.', en: 'Please select a valid supplier.' },
   'docCreate.saveAlert.noItems': { ar: 'لا يمكن حفظ مستند فارغ. الرجاء إضافة بند واحد صحيح على الأقل.', en: 'Cannot save an empty document. Please add at least one valid item.' },
+  'docCreate.saveAlert.invalidAmount': { ar: 'الرجاء إدخال مبلغ صحيح.', en: 'Please enter a valid amount.' },
   'docCreate.saveSuccess.quotation.create': { ar: 'تم إنشاء عرض السعر بنجاح!', en: 'Quotation created successfully!' },
   'docCreate.saveSuccess.quotation.edit': { ar: 'تم تحديث عرض السعر بنجاح!', en: 'Quotation updated successfully!' },
   'docCreate.saveSuccess.invoice.create': { ar: 'تم إنشاء الفاتورة بنجاح!', en: 'Invoice created successfully!' },
+  'docCreate.saveSuccess.receipt.create': { ar: 'تم إنشاء السند بنجاح!', en: 'Receipt created successfully!' },
+  'docCreate.saveSuccess.receipt.edit': { ar: 'تم تحديث السند بنجاح!', en: 'Receipt updated successfully!' },
+  'docCreate.saveSuccess.voucher.create': { ar: 'تم إنشاء السند بنجاح!', en: 'Voucher created successfully!' },
+  'docCreate.saveSuccess.voucher.edit': { ar: 'تم تحديث السند بنجاح!', en: 'Voucher updated successfully!' },
   'docCreate.saveError': { ar: 'خطأ في الحفظ', en: 'Save Error' },
+  'docCreate.dataLoadErrorDetails.title': { ar: 'فشل الاتصال بالخادم لجلب البيانات الأولية.', en: 'Failed to connect to the server to fetch initial data.'},
+  'docCreate.dataLoadErrorDetails.errorForFile': { ar: 'تفاصيل الخطأ في ملف:', en: 'Error details for file:'},
   'docCreate.apiWarning': {
-    ar: 'فشل الاتصال بالخادم. يتم الآن استخدام بيانات تجريبية ولن تتمكن من الحفظ.',
-    en: 'Failed to connect to the server. Using mock data. You will not be able to save.'
+    ar: 'يتم الآن استخدام بيانات تجريبية ولن تتمكن من الحفظ. هذه المشكلة غالبًا بسبب خطأ في ملفات PHP.',
+    en: 'Using mock data. You will not be able to save. This is likely due to an error in the PHP files.'
   },
   'docCreate.apiWarningFiles': {
     ar: 'الملفات التي فشل تحميلها: {files}',
@@ -321,15 +352,17 @@ export const translations = {
     ar: 'لإصلاح المشكلة، افتح أدوات المطور (F12) -> Network Tab وتحقق من سبب فشل الطلبات.',
     en: 'To fix this, open Developer Tools (F12) -> Network Tab and check why the requests are failing.'
   },
-  'docCreate.loadError': {
-    ar: 'خطأ',
-    en: 'Error'
-  },
+  'docCreate.loadError': { ar: 'خطأ', en: 'Error' },
   'docCreate.supplierInvoiceNumber': { ar: 'رقم فاتورة المورد', en: 'Supplier Invoice Number' },
   'docCreate.amount': { ar: 'المبلغ*', en: 'Amount*' },
   'docCreate.paymentMethod': { ar: 'طريقة الدفع', en: 'Payment Method' },
   'docCreate.notesPlaceholder': { ar: 'مثال: دفعة من فاتورة INV-2024-001', en: 'Example: Payment for invoice INV-2024-001' },
-  
+  'docCreate.voucherDetailsTitle': { ar: 'تفاصيل السند', en: 'Voucher Details' },
+  'docCreate.dataLoadError': { ar: 'خطأ في تحميل البيانات', en: 'Error Loading Data' },
+  'docCreate.itemPlaceholder': { ar: 'اختر منتج', en: 'Select a product' },
+  'docCreate.descriptionPlaceholder': { ar: 'وصف البند', en: 'Item description' },
+  'docCreate.detailsTitle.quotation': { ar: 'تفاصيل عرض السعر', en: 'Quotation Details' },
+
   // Settings Page
   'settings.title': { ar: 'الإعدادات', en: 'Settings' },
   'settings.description': { ar: 'إدارة إعدادات النظام والتطبيقات.', en: 'Manage system and application settings.' },
@@ -437,6 +470,82 @@ export const translations = {
   'settings.doc.field.totalDebitSupplier': { ar: 'إجمالي الفواتير (مدين)', en: 'Total Invoices (Debit)' },
   'settings.doc.field.totalCredit': { ar: 'إجمالي المدفوعات (دائن)', en: 'Total Credit' },
   'settings.doc.field.closingBalance': { ar: 'الرصيد الختامي', en: 'Closing Balance' },
+  'settings.doc.defaultTerms.quotation': { ar: 'يتم دفع 50% مقدماً والباقي عند التسليم. العرض سارٍ لمدة 30 يوماً.', en: '50% payment is due upfront, with the remainder due upon delivery. This offer is valid for 30 days.' },
+  'settings.doc.defaultTerms.salesInvoice': { ar: 'يجب سداد هذه الفاتورة في غضون 30 يومًا من تاريخ الإصدار. سيتم تطبيق رسوم تأخير بنسبة 1.5% شهريًا على الأرصدة غير المدفوعة.', en: 'This invoice must be paid within 30 days of the issue date. A late fee of 1.5% per month will be applied to unpaid balances.' },
+  'settings.doc.defaultTerms.supplierInvoice': { ar: 'يتم الدفع لهذه الفاتورة وفقاً لشروط العقد المبرم. يرجى مراجعة قسم الحسابات لأية استفسارات.', en: 'Payment for this invoice is subject to the terms of the signed contract. Please contact the accounts department for any inquiries.' },
+  'settings.doc.defaultNotes.receipt': { ar: 'هذا السند بمثابة إيصال استلام للمبلغ المذكور أعلاه.', en: 'This document serves as a receipt for the amount stated above.' },
+  'settings.doc.defaultNotes.payment': { ar: 'هذا السند بمثابة إيصال دفع للمبلغ المذكور أعلاه.', en: 'This document serves as proof of payment for the amount stated above.' },
+  'settings.doc.defaultNotes.customerStatement': { ar: 'نشكر لكم حسن تعاملكم معنا. يرجى مراجعة قسم الحسابات في حال وجود أي استفسار.', en: 'We appreciate your business. Please contact the accounts department if you have any questions.' },
+  'settings.doc.defaultNotes.supplierStatement': { ar: 'يرجى مراجعة قسم الحسابات في حال وجود أي استفسار حول هذا الكشف.', en: 'Please contact the accounts department if you have any questions about this statement.' },
+
+  // API Error Messages
+  'error.api.fetchWithStatus': { ar: 'فشل الجلب. استجاب الخادم بحالة {status}.', en: 'Fetch failed. Server responded with status {status}.' },
+  'error.api.hostingSecurityChallenge.title': { ar: 'تم اكتشاف المشكلة: نظام أمان الاستضافة يمنع الوصول.', en: 'Problem Detected: Hosting Security System is Blocking Access.' },
+  'error.api.hostingSecurityChallenge.description': { ar: 'يقوم خادم الاستضافة الخاص بك بإرجاع "صفحة تحقق JavaScript" بدلاً من البيانات المطلوبة. هذا الإجراء الأمني هو السبب المباشر لخطأ "Invalid JSON response" ويجب تعطيله لواجهة API لكي يعمل التطبيق.', en: 'Your hosting server is returning a "JavaScript Challenge Page" instead of the requested data. This security measure is the direct cause of the "Invalid JSON response" error and must be disabled for the API for the application to work.' },
+  'error.api.hostingSecurityChallenge.solutionTitle': { ar: 'الحل النهائي (يرجى إرساله للدعم الفني):', en: 'Definitive Solution (Please send to technical support):' },
+  'error.api.hostingSecurityChallenge.solutionInstruction': { ar: 'تواصل مع الدعم الفني لشركة الاستضافة فورًا وأرسل لهم هذه الرسالة (باللغة الإنجليزية لضمان الوضوح):', en: 'Contact your hosting provider\'s support immediately and send them this message (in English for clarity):' },
+  'error.api.hostingSecurityChallenge.solutionMessage': { 
+      ar: 'Hello,\\n\\nMy frontend application is making API requests to my PHP scripts in the /api/ directory. Your server\\\'s security system (e.g., WAF, Anti-Bot) is blocking these requests by returning a JavaScript challenge page.\\n\\nThis is preventing my application from functioning correctly. Please whitelist my /api/ directory and disable the "JavaScript Challenge" / "Bot Protection" security feature for that specific path.\\n\\nThank you.', 
+      en: 'Hello,\\n\\nMy frontend application is making API requests to my PHP scripts in the /api/ directory. Your server\\\'s security system (e.g., WAF, Anti-Bot) is blocking these requests by returning a JavaScript challenge page.\\n\\nThis is preventing my application from functioning correctly. Please whitelist my /api/ directory and disable the "JavaScript Challenge" / "Bot Protection" security feature for that specific path.\\n\\nThank you.' 
+  },
+  'error.api.hostingSecurityChallenge.solutionNote': { ar: 'بعد أن يقوموا بتعطيل هذه الميزة، ستُحل المشكلة نهائياً.', en: 'After they disable this feature, the problem will be permanently resolved.' },
+  'error.api.jsonParseFailure.title': { ar: 'فشل تحليل استجابة الخادم (Invalid JSON).', en: 'Failed to Parse Server Response (Invalid JSON).' },
+  'error.api.jsonParseFailure.description': { ar: 'هذا يعني غالبًا وجود خطأ برمجي (Fatal Error) في ملف PHP يمنعه من إخراج بيانات JSON صحيحة.', en: 'This often means there is a fatal error in the PHP file preventing it from outputting valid JSON.' },
+  'error.api.jsonParseFailure.action': { ar: 'اذهب إلى صفحة "تشخيص الاتصال" لتحديد المشكلة بدقة.', en: 'Go to the "Connection Diagnostics" page to pinpoint the issue.' },
+  'error.api.networkError.title': { ar: 'فشل الاتصال بالخادم (خطأ في الشبكة)', en: 'Server Connection Failed (Network Error)' },
+  'error.api.networkError.description': { ar: 'حاول متصفحك طلب البيانات من الخادم، لكن الخادم رفض الاتصال. هذه المشكلة **ليست خطأً في برمجة التطبيق**، بل هي مشكلة في إعدادات الخادم الذي تستضيف عليه ملفات PHP.', en: 'Your browser tried to request data, but the server refused the connection. This is **not an application bug**, but a server configuration issue.' },
+  'error.api.networkError.cause': { ar: 'السبب الأكثر شيوعاً: مشكلة CORS', en: 'Most Common Cause: CORS Issue' },
+  'error.api.networkError.causeDescription': { ar: 'يمنع الخادم الخاص بك هذا الموقع من الوصول إلى بياناته كإجراء أمني افتراضي.', en: 'Your server is blocking this website from accessing its data as a default security measure.' },
+  'error.api.networkError.solutionTitle': { ar: 'الحل المضمون (لإرساله للدعم الفني):', en: 'Guaranteed Solution (to send to tech support):' },
+  'error.api.networkError.solutionInstruction': { ar: 'تواصل مع الدعم الفني لشركة الاستضافة وأرسل لهم هذه الرسالة (يفضل باللغة الإنجليزية):', en: 'Contact your hosting support and send them this message (preferably in English):' },
+  'error.api.networkError.solutionMessage': { 
+      ar: 'Subject: Urgent - CORS Policy Blocking API Access\\n\\nHello Support Team,\\n\\nMy frontend application, hosted at [Your Website URL], cannot access my PHP API located in the /api/ directory on my server.\\n\\nThe browser\\\'s console shows a "Cross-Origin Resource Sharing (CORS)" error, which means the server is blocking the requests.\\n\\nPlease add the following HTTP header to the configuration for the /api/ directory to resolve this issue:\\n\\nAccess-Control-Allow-Origin: *\\n\\nThis will allow my application to function correctly. Thank you.', 
+      en: 'Subject: Urgent - CORS Policy Blocking API Access\\n\\nHello Support Team,\\n\\nMy frontend application, hosted at [Your Website URL], cannot access my PHP API located in the /api/ directory on my server.\\n\\nThe browser\\\'s console shows a "Cross-Origin Resource Sharing (CORS)" error, which means the server is blocking the requests.\\n\\nPlease add the following HTTP header to the configuration for the /api/ directory to resolve this issue:\\n\\nAccess-Control-Allow-Origin: *\\n\\nThis will allow my application to function correctly. Thank you.' 
+  },
+  'error.api.networkError.solutionNote': { ar: 'ملاحظة: استبدل [Your Website URL] برابط موقعك الفعلي.', en: 'Note: Replace [Your Website URL] with your actual website URL.' },
+  'error.api.networkError.diagnosisTitle': { ar: 'لتشخيص إضافي:', en: 'For further diagnosis:' },
+  'error.api.networkError.diagnosisAction': { ar: 'انقر هنا لتشغيل أداة تشخيص الخادم', en: 'Click here to run the server diagnostics tool' },
+  'error.api.requestFailed': { ar: 'فشل الطلب من الخادم', en: 'Server request failed' },
+  'error.api.jsonParseFailedWithResponse': { ar: 'فشل تحليل استجابة الخادم كـ JSON. قد يكون هناك خطأ في PHP. الاستجابة', en: 'Failed to parse server response as JSON. There might be a PHP error. Response' },
+  'error.api.deleteFailed': { ar: 'فشل حذف {item}.', en: 'Failed to delete {item}.' },
+  'error.api.jsonParseFailedPHP': { ar: 'فشل تحليل استجابة الخادم كـ JSON. قد يكون هناك خطأ في PHP. الاستجابة: {response}', en: 'Failed to parse server response as JSON. There might be a PHP error. Response: {response}' },
+  'error.api.unexpectedError': { ar: 'حدث خطأ غير متوقع.', en: 'An unexpected error occurred.' },
+  'error.api.customers.diagnostics.title': { ar: 'تم تشخيص المشكلة بنجاح!', en: 'Problem Diagnosed Successfully!' },
+  'error.api.customers.diagnostics.description': { ar: 'بناءً على تحليل سجل الأخطاء، المشكلة هي خطأ برمجي فادح (Fatal Error) في ملف **`customers.php`**.', en: 'Based on error log analysis, the problem is a Fatal Error in the **`customers.php`** file.' },
+  'error.api.customers.diagnostics.reason': { ar: 'السبب الدقيق (من سجل الأخطاء):', en: 'Exact Cause (from error log):' },
+  'error.api.customers.diagnostics.reasonText': { ar: 'هذا يعني أن جدول **`customers`** في قاعدة بياناتك لا يحتوي على عمود `created_at` الضروري لتتبع تاريخ إنشاء العملاء.', en: 'This means the **`customers`** table in your database does not have the required `created_at` column for tracking customer creation dates.' },
+  'error.api.customers.diagnostics.solution': { ar: 'الحل النهائي (موصى به):', en: 'Definitive Solution (Recommended):' },
+  'error.api.customers.diagnostics.step1': { ar: 'اذهب إلى **phpMyAdmin**.', en: 'Go to **phpMyAdmin**.' },
+  'error.api.customers.diagnostics.step2': { ar: 'اختر قاعدة البيانات الخاصة بالمشروع.', en: 'Select the project\'s database.' },
+  'error.api.customers.diagnostics.step3': { ar: 'احذف جدول `customers` (Drop table).', en: 'Delete the `customers` table (Drop table).' },
+  'error.api.customers.diagnostics.step4': { ar: 'اضغط على **"Import"** وقم باستيراد ملف **`api/setup.sql`** مرة أخرى لإنشاء الجدول بالأعمدة الصحيحة.', en: 'Click **"Import"** and re-import the **`api/setup.sql`** file to create the table with the correct columns.' },
+  'error.api.suppliers.diagnostics.description': { ar: 'بناءً على تحليل سجل الأخطاء، المشكلة هي خطأ برمجي فادح (Fatal Error) في ملف **`suppliers.php`**.', en: 'Based on error log analysis, the problem is a Fatal Error in the **`suppliers.php`** file.' },
+  'error.api.suppliers.diagnostics.reasonText': { ar: 'هذا يعني أن جدول **`suppliers`** في قاعدة بياناتك لا يحتوي على عمود `created_at` الضروري.', en: 'This means the **`suppliers`** table in your database does not have the required `created_at` column.' },
+  'error.api.products.diagnostics.dbError.title': { ar: 'تم تشخيص المشكلة: خطأ في قاعدة البيانات', en: 'Problem Diagnosed: Database Error' },
+  'error.api.products.diagnostics.dbError.description': { ar: 'يبدو أن جدول **`products`** في قاعدة البيانات لا يحتوي على جميع الأعمدة المطلوبة. هذا عادة ما يحدث إذا لم يتم تحديث بنية قاعدة البيانات بشكل صحيح.', en: 'It appears the **`products`** table in the database is missing required columns. This usually happens if the database schema was not updated correctly.' },
+  'error.api.products.diagnostics.dbError.serverMessage': { ar: 'رسالة الخطأ من الخادم:', en: 'Server Error Message:' },
+  'error.api.products.diagnostics.dbError.solution': { ar: 'الحل الموصى به:', en: 'Recommended Solution:' },
+  'error.api.products.diagnostics.dbError.step1': { ar: 'اذهب إلى **phpMyAdmin**.', en: 'Go to **phpMyAdmin**.' },
+  'error.api.products.diagnostics.dbError.step2': { ar: 'اختر قاعدة البيانات الخاصة بمشروعك.', en: 'Select your project\'s database.' },
+  'error.api.products.diagnostics.dbError.step3': { ar: 'احذف جدول `products` (Drop table).', en: 'Delete the `products` table (Drop table).' },
+  'error.api.products.diagnostics.dbError.step4': { ar: 'انقر على **"Import"** وقم بإعادة استيراد ملف **`api/setup.sql`** لتصحيح بنية الجدول.', en: 'Click **"Import"** and re-import the **`api/setup.sql`** file to correct the table structure.' },
+  'error.api.products.diagnostics.dbError.note': { ar: 'سيؤدي هذا إلى حل المشكلة. إذا استمرت المشكلة، يرجى مراجعة ملف الخطأ في الخادم.', en: 'This should resolve the issue. If the problem persists, please check the server error log.' },
+  'error.api.products.diagnostics.phpError.title': { ar: 'خطأ فادح في الخادم (Fatal PHP Error)', en: 'Fatal Server Error (Fatal PHP Error)' },
+  'error.api.products.diagnostics.phpError.description': { ar: 'تلقى التطبيق استجابة غير متوقعة من الخادم عند طلب بيانات المنتجات. هذا يعني عادةً وجود خطأ برمجي في ملف **`products.php`** يمنعه من العمل بشكل صحيح.', en: 'The application received an unexpected response from the server when requesting product data. This usually indicates a code error in **`products.php`** is preventing it from running correctly.' },
+  'error.api.products.diagnostics.phpError.serverMessage': { ar: 'رسالة الخطأ الفعلية من الخادم:', en: 'Actual Error Message from Server:' },
+  'error.api.products.diagnostics.phpError.noResponse': { ar: 'لم يتم استلام أي نص من الخادم. قد يكون الملف فارغًا أو غير موجود.', en: 'No text received from the server. The file might be empty or missing.' },
+  'error.api.products.diagnostics.phpError.solution': { ar: 'ماذا تفعل الآن؟', en: 'What to do now?' },
+  'error.api.products.diagnostics.unexpectedError.title': { ar: 'حدث خطأ غير متوقع', en: 'An Unexpected Error Occurred' },
+  'error.api.saveFailed.phpError': { ar: 'فشل حفظ {item}: خطأ في الخادم.', en: 'Failed to save {item}: Server error.' },
+  'error.api.saveFailed.phpErrorDescription': { ar: 'حدث خطأ فادح (Fatal Error) في ملف PHP على الخادم (`{file}`) مما منعه من إرجاع استجابة JSON صحيحة.', en: 'A Fatal Error occurred in the PHP file on the server (`{file}`), which prevented it from returning a valid JSON response.' },
+  'error.api.saveFailed.serverError': { ar: 'فشل حفظ {item}.', en: 'Failed to save {item}.' },
+  'error.api.saveFailed.serverErrorDescription': { ar: 'حدث خطأ أثناء الاتصال بالخادم.', en: 'An error occurred while communicating with the server.' },
+  'error.api.saveFailed.serverResponseMessage': { ar: 'الاستجابة الفعلية من الخادم (سبب المشكلة):', en: 'Actual Response from Server (Cause of Issue):' },
+  'error.api.saveFailed.fixInstruction': { ar: 'الحل: قم بمراجعة الاستجابة أعلاه (والتي هي خرج خطأ PHP) وقم بإصلاح المشكلة في ملف `{file}`. غالبًا ما يكون الخطأ متعلقًا بقاعدة البيانات أو خطأ في بناء الجملة.', en: 'Solution: Review the response above (which is the PHP error output) and fix the issue in the `{file}` file. The error is often related to the database or a syntax mistake.' },
+  'error.api.loadData.customers.warning': { ar: 'فشل تحميل العملاء بسبب خطأ بالخادم.', en: 'Failed to load customers due to a server error.' },
+  'error.api.loadData.customers.warningText': { ar: 'الاستجابة من `customers.php` ليست JSON صالحًا. هذا خطأ PHP.', en: 'The response from `customers.php` is not valid JSON. This is a PHP error.' },
+  'error.api.loadData.suppliers.warning': { ar: 'فشل تحميل الموردين بسبب خطأ بالخادم.', en: 'Failed to load suppliers due to a server error.' },
+  'error.api.loadData.suppliers.warningText': { ar: 'الاستجابة من `suppliers.php` ليست JSON صالحًا. هذا خطأ PHP.', en: 'The response from `suppliers.php` is not valid JSON. This is a PHP error.' },
 
   // Server Test
   'serverTest.title': { ar: 'تشخيص الاتصال بالخادم', en: 'Server Connection Diagnostics' },
@@ -458,35 +567,39 @@ export const translations = {
   'serverTest.status.loading': { ar: 'جاري الاختبار...', en: 'Testing...' },
   'serverTest.status.success': { ar: 'نجح', en: 'Success' },
   'serverTest.status.failure': { ar: 'فشل', en: 'Failed' },
-  
-  // Roles
-  'role.admin': { ar: 'مدير النظام', en: 'System Administrator' },
-  'role.accountant': { ar: 'محاسب', en: 'Accountant' },
-  'role.sales': { ar: 'مندوب مبيعات', en: 'Sales Representative' },
-  'role.support': { ar: 'دعم فني', en: 'Technical Support' },
-  'role.adminDescription': { ar: 'يمتلك جميع الصلاحيات على النظام.', en: 'Has all permissions on the system.' },
-  'role.accountantDescription': { ar: 'صلاحيات على الحسابات والفواتير والسندات.', en: 'Permissions for accounts, invoices, and vouchers.' },
-  'role.salesDescription': { ar: 'صلاحيات على عروض الأسعار وفواتير المبيعات.', en: 'Permissions for quotations and sales invoices.' },
-  'role.supportDescription': { ar: 'صلاحيات محدودة لعرض البيانات.', en: 'Limited permissions to view data.' },
+  'serverTest.error.404': { ar: 'فشل الاتصال بالخادم (خطأ 404): الملف test_connection.php غير موجود. تأكد من أنك قمت بإنشاء الملف في المسار الصحيح ({url}) وأن الخادم (XAMPP) يعمل.', en: 'Server connection failed (Error 404): The file test_connection.php was not found. Ensure you created the file at the correct path ({url}) and that the server (XAMPP) is running.' },
+  'serverTest.error.fetch': { ar: 'فشل الاتصال بالخادم. رمز الحالة: {status}. تأكد من أن Apache يعمل ومن صحة الرابط في api.ts', en: 'Failed to connect to the server. Status code: {status}. Ensure Apache is running and the URL in api.ts is correct.' },
+  'serverTest.error.security': { ar: 'فشل الاتصال بسبب نظام أمان الاستضافة (JavaScript Challenge). يرجى مراجعة الدعم الفني للاستضافة لتعطيل هذه الميزة عن مجلد /api/.', en: 'Connection failed due to hosting security system (JavaScript Challenge). Please contact hosting support to disable this feature for the /api/ directory.' },
+  'serverTest.error.json': { ar: 'فشل تحليل استجابة الخادم. هذا يعني وجود خطأ في PHP يمنع إخراج JSON صحيح. تحقق من ملف `test_connection.php`.', en: 'Failed to parse server response. This indicates a PHP error is preventing valid JSON output. Check `test_connection.php`.' },
+  'serverTest.error.unknown': { ar: 'حدث خطأ غير معروف.', en: 'An unknown error occurred.' },
 
-  // Company Mock Data
-  'company.systemName': { ar: 'نظام ERP', en: 'ERP System' },
-  'company.companyName': { ar: 'شركتنا', en: 'Our Company' },
-  'company.address': { ar: '١٢٣ الشارع الرئيسي، مدينة، دولة', en: '123 Main Street, City, Country' },
+  // Currency Symbols & Names
+  'currency.egpName': { ar: 'جنيه مصري', en: 'Egyptian Pound' },
+  'currency.egpSymbol': { ar: 'ج.م', en: 'EGP' },
+  'currency.sarName': { ar: 'ريال سعودي', en: 'Saudi Riyal' },
+  'currency.sarSymbol': { ar: 'ر.س', en: 'SAR' },
+  'currency.usdName': { ar: 'دولار أمريكي', en: 'US Dollar' },
+  'currency.usdSymbol': { ar: '$', en: 'USD' },
   
   // Payment Methods
-  'paymentMethod.bank': {ar: 'تحويل بنكي', en: 'Bank Transfer'},
-  'paymentMethod.cash': {ar: 'نقداً', en: 'Cash'},
-  'paymentMethod.cheque': {ar: 'شيك', en: 'Cheque'},
-  'paymentMethod.card': {ar: 'شبكة', en: 'Card'},
+  'paymentMethod.bank': { ar: 'تحويل بنكي', en: 'Bank Transfer' },
+  'paymentMethod.cash': { ar: 'نقدي', en: 'Cash' },
+  'paymentMethod.cheque': { ar: 'شيك', en: 'Cheque' },
+  'paymentMethod.card': { ar: 'بطاقة ائتمانية', en: 'Credit Card' },
 
-  // Currencies
-  'currency.egp': { ar: 'جنيه مصري', en: 'Egyptian Pound' },
-  'currency.sar': { ar: 'ريال سعودي', en: 'Saudi Riyal' },
-  'currency.usd': { ar: 'دولار أمريكي', en: 'US Dollar' },
-  'currency.egpSymbol': { ar: 'ج.م', en: 'EGP' },
-  'currency.sarSymbol': { ar: 'ر.س', en: 'SAR' },
-  'currency.usdSymbol': { ar: '$', en: 'USD' },
+  // Mock Data Keys (for settings)
+  'mock.company.systemName': { ar: 'نظام الفوترة المتكامل', en: 'Integrated Billing System' },
+  'mock.company.name': { ar: 'الشركة السعودية للحلول التقنية', en: 'Saudi Technical Solutions Co.' },
+  'mock.company.address': { ar: '123 شارع الملك فهد، الرياض، المملكة العربية السعودية', en: '123 King Fahd Rd, Riyadh, Saudi Arabia' },
+  'mock.company.systemName.eg': { ar: 'نظام الفوترة المصري', en: 'Egyptian Billing System' },
+  'mock.company.name.eg': { ar: 'الشركة المصرية للحلول التقنية', en: 'Egyptian Technical Solutions Co.' },
+  'mock.company.address.eg': { ar: '123 شارع النيل، القاهرة، مصر', en: '123 Nile St, Cairo, Egypt' },
+  'mock.roles.admin.name': { ar: 'مدير النظام', en: 'Administrator' },
+  'mock.roles.admin.description': { ar: 'صلاحيات كاملة على النظام.', en: 'Full system permissions.' },
+  'mock.roles.sales.name': { ar: 'موظف مبيعات', en: 'Salesperson' },
+  'mock.roles.sales.description': { ar: 'إدارة عروض الأسعار وفواتير المبيعات والعملاء.', en: 'Manages quotations, sales invoices, and customers.' },
+  'mock.roles.accountant.name': { ar: 'محاسب', en: 'Accountant' },
+  'mock.roles.accountant.description': { ar: 'إدارة جميع العمليات المالية والمشتريات.', en: 'Manages all financial operations and purchases.' }
 };
 
 export type TranslationKey = keyof typeof translations;

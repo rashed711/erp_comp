@@ -4,6 +4,8 @@ import { PaymentVoucher, PaymentVoucherSettingsConfig, PaymentVoucherFieldConfig
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
+import { useI18n } from '../../i18n/I18nProvider';
+import { TranslationKey } from '../../i18n/translations';
 
 interface PaymentVoucherDetailProps {
     voucherId: string;
@@ -11,13 +13,14 @@ interface PaymentVoucherDetailProps {
 }
 
 const PaymentVoucherDetail: React.FC<PaymentVoucherDetailProps> = ({ voucherId, onBack }) => {
+    const { t } = useI18n();
     const [voucher, setVoucher] = useState<PaymentVoucher | null>(null);
     const [settings, setSettings] = useState<PaymentVoucherSettingsConfig | null>(null);
     const [loading, setLoading] = useState(true);
     
     const { downloadPdf, isProcessing } = usePdfGenerator({
         elementId: 'printable-voucher',
-        fileName: `Payment-Voucher-${voucher?.id}`
+        fileName: `${t('pdf.fileName.paymentVoucher')}-${voucher?.id}`
     });
 
     useEffect(() => {
@@ -40,18 +43,18 @@ const PaymentVoucherDetail: React.FC<PaymentVoucherDetailProps> = ({ voucherId, 
         if (!field) return null;
         return (
             <div className="flex justify-between items-start border-b pb-3">
-                <p className="font-semibold text-gray-600">{field.label}:</p>
+                <p className="font-semibold text-gray-600">{t(field.label as TranslationKey)}:</p>
                 <div className="text-gray-800 font-medium text-left max-w-xs">{value}</div>
             </div>
         );
     };
 
     if (loading) {
-        return <div className="flex items-center justify-center h-screen"><p>جاري تحميل السند...</p></div>;
+        return <div className="flex items-center justify-center h-screen"><p>{t('paymentVouchers.detail.loading')}</p></div>;
     }
 
     if (!voucher || !settings) {
-        return <div className="flex items-center justify-center h-screen"><p>لم يتم العثور على سند الصرف أو إعداداته.</p></div>;
+        return <div className="flex items-center justify-center h-screen"><p>{t('paymentVouchers.detail.notFound')}</p></div>;
     }
 
     return (
@@ -63,7 +66,7 @@ const PaymentVoucherDetail: React.FC<PaymentVoucherDetailProps> = ({ voucherId, 
                             <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" style={{transform: 'scaleX(-1)'}}/>
                         </button>
                         <div>
-                             <h1 className="text-lg sm:text-xl font-bold text-emerald-600">سند صرف #{voucher.id}</h1>
+                             <h1 className="text-lg sm:text-xl font-bold text-emerald-600">{t('paymentVouchers.detail.title', { id: voucher.id })}</h1>
                              <p className="text-xs sm:text-sm text-gray-500">{voucher.supplier.name}</p>
                         </div>
                     </div>
@@ -77,7 +80,7 @@ const PaymentVoucherDetail: React.FC<PaymentVoucherDetailProps> = ({ voucherId, 
                            ) : (
                             <Icons.DownloadIcon className="w-4 h-4" />
                            )}
-                            <span className="hidden sm:inline">{isProcessing ? 'جاري...' : 'تحميل'}</span>
+                            <span className="hidden sm:inline">{isProcessing ? t('common.processing') : t('common.download')}</span>
                         </button>
                     </div>
                 </div>
@@ -93,7 +96,7 @@ const PaymentVoucherDetail: React.FC<PaymentVoucherDetailProps> = ({ voucherId, 
                     )}
                     
                     <div className="flex justify-between items-center mb-10">
-                         <h1 className="text-3xl font-bold text-emerald-600">سند صرف</h1>
+                         <h1 className="text-3xl font-bold text-emerald-600">{t('sidebar.paymentVouchers')}</h1>
                          <div className="text-left">
                              {renderDetailRow('voucherNumber', <span className="font-mono">{voucher.id}</span>)}
                              <div className="mt-4"></div>
@@ -105,7 +108,7 @@ const PaymentVoucherDetail: React.FC<PaymentVoucherDetailProps> = ({ voucherId, 
                         {renderDetailRow('supplierInfo', voucher.supplier.name)}
                         {renderDetailRow('amount', <span className="font-bold text-emerald-600">{formatCurrency(voucher.total, voucher.currency.symbol)}</span>)}
                         {renderDetailRow('paymentMethod', voucher.paymentMethod)}
-                        {renderDetailRow('notes', voucher.notes || settings.defaultNotes)}
+                        {renderDetailRow('notes', voucher.notes || t(settings.defaultNotes as TranslationKey))}
                     </div>
 
                     {/* Footer */}

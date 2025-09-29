@@ -1,24 +1,24 @@
 // =================================================================
-// الإعداد المركزي لـ API
+// Central API Configuration
 // =================================================================
-// هذا هو الملف المركزي لتحديد عنوان الواجهة الخلفية (PHP API).
+// This is the central file for defining the backend (PHP API) URL.
 
 /**
- * --- الإعداد للتطوير المحلي (XAMPP) ---
+ * --- Setup for Local Development (XAMPP) ---
  * 
- * استخدم هذا الرابط عند تشغيل الواجهة الأمامية (React) على سيرفر التطوير (vite)
- * والواجهة الخلفية (PHP) على سيرفر XAMPP المحلي.
- * تأكد من أن المسار يطابق اسم المجلد الخاص بك داخل `htdocs`.
+ * Use this URL when running the frontend (React) on its development server (Vite)
+ * and the backend (PHP) on a local XAMPP server.
+ * Make sure the path matches your project's folder name inside `htdocs`.
  * 
- * مثال: إذا كان مشروعك في `xampp/htdocs/my-erp`، سيكون الرابط `http://localhost/my-erp/api/`
+ * Example: If your project is in `xampp/htdocs/my-erp`, the URL would be `http://localhost/my-erp/api/`
  */
 export const API_BASE_URL = 'http://localhost/erp/api/';
 
 /**
- * --- الإعداد للرفع على الاستضافة (Production) ---
+ * --- Setup for Production Deployment ---
  * 
- * عند رفع المشروع على استضافة حقيقية أو Vercel، استخدم الرابط التالي.
- * هذا يفترض أن مجلد `api` سيكون في نفس مستوى ملفات الواجهة الأمامية.
- * قم بإلغاء التعليق على السطر التالي وتأكد من التعليق على رابط التطوير المحلي.
+ * When deploying the project to a live host or Vercel, use the following URL.
+ * This assumes the `api` directory will be at the same level as the frontend files.
+ * Uncomment the following line and ensure the local development URL is commented out.
  */
 // export const API_BASE_URL = '/api/';

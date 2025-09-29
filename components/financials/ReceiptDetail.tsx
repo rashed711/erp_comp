@@ -4,6 +4,8 @@ import { Receipt, ReceiptSettingsConfig, ReceiptFieldConfig } from '../../types'
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
+import { useI18n } from '../../i18n/I18nProvider';
+import { TranslationKey } from '../../i18n/translations';
 
 interface ReceiptDetailProps {
     receiptId: string;
@@ -11,13 +13,14 @@ interface ReceiptDetailProps {
 }
 
 const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
+    const { t } = useI18n();
     const [receipt, setReceipt] = useState<Receipt | null>(null);
     const [settings, setSettings] = useState<ReceiptSettingsConfig | null>(null);
     const [loading, setLoading] = useState(true);
 
     const { downloadPdf, isProcessing } = usePdfGenerator({
         elementId: 'printable-receipt',
-        fileName: `Receipt-${receipt?.id}`
+        fileName: `${t('pdf.fileName.receipt')}-${receipt?.id}`
     });
 
     useEffect(() => {
@@ -40,18 +43,18 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
         if (!field) return null;
         return (
             <div className="flex justify-between items-start border-b pb-3">
-                <p className="font-semibold text-gray-600">{field.label}:</p>
+                <p className="font-semibold text-gray-600">{t(field.label as TranslationKey)}:</p>
                 <div className="text-gray-800 font-medium text-left max-w-xs">{value}</div>
             </div>
         );
     };
 
     if (loading) {
-        return <div className="flex items-center justify-center h-screen"><p>جاري تحميل السند...</p></div>;
+        return <div className="flex items-center justify-center h-screen"><p>{t('receipts.detail.loading')}</p></div>;
     }
 
     if (!receipt || !settings) {
-        return <div className="flex items-center justify-center h-screen"><p>لم يتم العثور على سند القبض أو إعداداته.</p></div>;
+        return <div className="flex items-center justify-center h-screen"><p>{t('receipts.detail.notFound')}</p></div>;
     }
 
     return (
@@ -63,7 +66,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
                             <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" style={{transform: 'scaleX(-1)'}}/>
                         </button>
                         <div>
-                             <h1 className="text-lg sm:text-xl font-bold text-emerald-600">سند قبض #{receipt.id}</h1>
+                             <h1 className="text-lg sm:text-xl font-bold text-emerald-600">{t('receipts.detail.title', { id: receipt.id })}</h1>
                              <p className="text-xs sm:text-sm text-gray-500">{receipt.customer.name}</p>
                         </div>
                     </div>
@@ -78,7 +81,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
                            ) : (
                             <Icons.DownloadIcon className="w-4 h-4" />
                            )}
-                            <span className="hidden sm:inline">{isProcessing ? 'جاري...' : 'تحميل'}</span>
+                            <span className="hidden sm:inline">{isProcessing ? t('common.processing') : t('common.download')}</span>
                         </button>
                     </div>
                 </div>
@@ -94,7 +97,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
                     )}
 
                     <div className="flex justify-between items-center mb-10">
-                         <h1 className="text-3xl font-bold text-emerald-600">سند قبض</h1>
+                         <h1 className="text-3xl font-bold text-emerald-600">{t('sidebar.receipts')}</h1>
                          <div className="text-left">
                              {renderDetailRow('receiptNumber', <span className="font-mono">{receipt.id}</span>)}
                              <div className="mt-4"></div>
@@ -106,7 +109,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
                         {renderDetailRow('customerInfo', receipt.customer.name)}
                         {renderDetailRow('amount', <span className="font-bold text-emerald-600">{formatCurrency(receipt.total, receipt.currency.symbol)}</span>)}
                         {renderDetailRow('paymentMethod', receipt.paymentMethod)}
-                        {renderDetailRow('notes', receipt.notes || settings.defaultNotes)}
+                        {renderDetailRow('notes', receipt.notes || t(settings.defaultNotes as TranslationKey))}
                     </div>
                     
                     {/* Footer */}

@@ -70,40 +70,41 @@ const ProductManagement: React.FC = () => {
         } catch (err: any) {
             console.error("Fetch Error in ProductManagement:", err);
             let detailedError: React.ReactNode;
-            const errorMessage = err.message || '';
+            
+            const fullErrorText = (responseText || (err.message || '')).toLowerCase();
+            const isUnknownColumnError = fullErrorText.includes('unknown column');
 
-             if (errorMessage.startsWith('NETWORK_ERROR')) {
-                 detailedError = (
+            if (isUnknownColumnError) {
+                // Specific error message for "Unknown column"
+                detailedError = (
                     <div>
-                        <p className="font-bold text-lg mb-2">تم تشخيص المشكلة بنجاح!</p>
+                        <p className="font-bold text-lg mb-2">تم تشخيص المشكلة: خطأ في قاعدة البيانات</p>
                         <p className="mb-3">
-                            بناءً على سجل الأخطاء الذي قدمته، المشكلة هي خطأ برمجي فادح (Fatal Error) في ملف <strong>`products.php`</strong>.
+                            يبدو أن جدول <strong>`products`</strong> في قاعدة البيانات لا يحتوي على جميع الأعمدة المطلوبة. هذا عادة ما يحدث إذا لم يتم تحديث بنية قاعدة البيانات بشكل صحيح.
                         </p>
                         
                         <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                            <p className="font-semibold text-red-800">السبب الدقيق (من سجل الأخطاء):</p>
-                            <p className="text-sm mt-1 font-mono">
-                                `Unknown column 'stock_quantity'` أو `Unknown column 'average_purchase_price'`
-                            </p>
-                            <p className="text-sm mt-2">
-                                هذا يعني أن جدول <strong>`products`</strong> في قاعدة بياناتك لا يحتوي على هذه الأعمدة الضرورية.
-                            </p>
+                            <p className="font-semibold text-red-800">رسالة الخطأ من الخادم:</p>
+                            <pre className="mt-2 p-3 bg-gray-700 text-white rounded-md text-xs text-left leading-relaxed whitespace-pre-wrap" dir="ltr">
+                                {responseText || err.message}
+                            </pre>
                         </div>
 
-                        <p className="mt-4 font-semibold text-gray-800">الحل النهائي (موصى به):</p>
+                        <p className="mt-4 font-semibold text-gray-800">الحل الموصى به:</p>
                         <ol className="list-decimal list-inside space-y-2 mt-2 text-sm">
                             <li>اذهب إلى <strong>phpMyAdmin</strong>.</li>
-                            <li>اختر قاعدة البيانات الخاصة بالمشروع (مثلاً: `comp` أو `erp`).</li>
+                            <li>اختر قاعدة البيانات الخاصة بمشروعك.</li>
                             <li>احذف جدول `products` (Drop table).</li>
-                            <li>اضغط على <strong>"Import"</strong> وقم باستيراد ملف <strong>`api/setup.sql`</strong> مرة أخرى لإنشاء الجدول بالأعمدة الصحيحة.</li>
+                            <li>انقر على <strong>"Import"</strong> وقم بإعادة استيراد ملف <strong>`api/setup.sql`</strong> لتصحيح بنية الجدول.</li>
                         </ol>
                         <p className="text-xs mt-2 text-gray-500">
-                            سيؤدي هذا إلى حل المشكلة بشكل نهائي. يجب تكرار العملية لجداول `customers` و `suppliers` إذا واجهت نفس المشكلة معهم.
+                            سيؤدي هذا إلى حل المشكلة. إذا استمرت المشكلة، يرجى مراجعة ملف الخطأ في الخادم.
                         </p>
                     </div>
                 );
             } else if (err instanceof SyntaxError) {
-                 detailedError = (
+                // Generic handler for other PHP errors that break JSON
+                detailedError = (
                     <div>
                         <p className="font-bold text-lg mb-2">خطأ فادح في الخادم (Fatal PHP Error)</p>
                         <p className="mb-3">
@@ -122,14 +123,15 @@ const ProductManagement: React.FC = () => {
                     </div>
                 );
             } else {
-                 detailedError = (
-                    <div>
-                        <p className="font-bold text-lg mb-2">حدث خطأ غير متوقع</p>
-                         <pre className="mt-2 p-3 bg-gray-100 text-gray-800 rounded-md text-xs text-left" dir="ltr">
-                           {errorMessage}
-                        </pre>
-                    </div>
-                );
+                // Handler for other errors like network issues
+                detailedError = (
+                   <div>
+                       <p className="font-bold text-lg mb-2">حدث خطأ غير متوقع</p>
+                        <pre className="mt-2 p-3 bg-gray-100 text-gray-800 rounded-md text-xs text-left" dir="ltr">
+                          {err.message || 'An unknown error occurred.'}
+                       </pre>
+                   </div>
+               );
             }
             setError(detailedError);
         } finally {

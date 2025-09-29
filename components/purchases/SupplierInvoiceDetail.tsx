@@ -4,6 +4,8 @@ import { SupplierInvoice, SupplierInvoiceSettingsConfig } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
+import { useI18n } from '../../i18n/I18nProvider';
+import { TranslationKey } from '../../i18n/translations';
 
 interface SupplierInvoiceDetailProps {
     invoiceId: string;
@@ -11,13 +13,14 @@ interface SupplierInvoiceDetailProps {
 }
 
 const SupplierInvoiceDetail: React.FC<SupplierInvoiceDetailProps> = ({ invoiceId, onBack }) => {
+    const { t } = useI18n();
     const [invoice, setInvoice] = useState<SupplierInvoice | null>(null);
     const [settings, setSettings] = useState<SupplierInvoiceSettingsConfig | null>(null);
     const [loading, setLoading] = useState(true);
     
     const { downloadPdf, isProcessing } = usePdfGenerator({
         elementId: 'printable-invoice',
-        fileName: `Supplier-Invoice-${invoice?.id}`
+        fileName: `${t('pdf.fileName.supplierInvoice')}-${invoice?.id}`
     });
 
     useEffect(() => {
@@ -56,7 +59,7 @@ const SupplierInvoiceDetail: React.FC<SupplierInvoiceDetailProps> = ({ invoiceId
 
                     return (
                         <div key={field.key} className="md:col-span-1 flex justify-between items-start border-b pb-2">
-                           <p className="font-semibold text-gray-600">{field.label}:</p>
+                           <p className="font-semibold text-gray-600">{t(field.label as TranslationKey)}:</p>
                            <p className="text-gray-800 font-medium text-left">{value}</p>
                         </div>
                     );
@@ -67,11 +70,11 @@ const SupplierInvoiceDetail: React.FC<SupplierInvoiceDetailProps> = ({ invoiceId
 
 
     if (loading) {
-        return <div className="flex items-center justify-center h-screen"><p>جاري تحميل الفاتورة...</p></div>;
+        return <div className="flex items-center justify-center h-screen"><p>{t('supplierInvoices.detail.loading')}</p></div>;
     }
 
     if (!invoice || !settings) {
-        return <div className="flex items-center justify-center h-screen"><p>لم يتم العثور على الفاتورة أو إعداداتها.</p></div>;
+        return <div className="flex items-center justify-center h-screen"><p>{t('supplierInvoices.detail.notFound')}</p></div>;
     }
 
     return (
@@ -83,7 +86,7 @@ const SupplierInvoiceDetail: React.FC<SupplierInvoiceDetailProps> = ({ invoiceId
                             <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" style={{transform: 'scaleX(-1)'}}/>
                         </button>
                         <div>
-                             <h1 className="text-lg sm:text-xl font-bold text-emerald-600">فاتورة مورد #{invoice.id}</h1>
+                             <h1 className="text-lg sm:text-xl font-bold text-emerald-600">{t('supplierInvoices.detail.title', { id: invoice.id })}</h1>
                              <p className="text-xs sm:text-sm text-gray-500">{invoice.supplier.name}</p>
                         </div>
                     </div>
@@ -97,7 +100,7 @@ const SupplierInvoiceDetail: React.FC<SupplierInvoiceDetailProps> = ({ invoiceId
                            ) : (
                             <Icons.DownloadIcon className="w-4 h-4" />
                            )}
-                            <span className="hidden sm:inline">{isProcessing ? 'جاري...' : 'تحميل'}</span>
+                            <span className="hidden sm:inline">{isProcessing ? t('common.processing') : t('common.download')}</span>
                         </button>
                     </div>
                 </div>
@@ -120,10 +123,10 @@ const SupplierInvoiceDetail: React.FC<SupplierInvoiceDetailProps> = ({ invoiceId
                         <table className="w-full text-right">
                             <thead className="bg-emerald-500 text-white">
                                 <tr>
-                                    <th className="p-3 font-semibold text-sm text-right rounded-r-lg">البند</th>
-                                    <th className="p-3 font-semibold text-sm text-center">الكمية</th>
-                                    <th className="p-3 font-semibold text-sm text-center">سعر الوحدة</th>
-                                    <th className="p-3 font-semibold text-sm text-left rounded-l-lg">الإجمالي</th>
+                                    <th className="p-3 font-semibold text-sm text-right rounded-r-lg">{t('docCreate.item.description')}</th>
+                                    <th className="p-3 font-semibold text-sm text-center">{t('docCreate.item.quantity')}</th>
+                                    <th className="p-3 font-semibold text-sm text-center">{t('docCreate.item.unitPrice')}</th>
+                                    <th className="p-3 font-semibold text-sm text-left rounded-l-lg">{t('docCreate.item.total')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -143,21 +146,21 @@ const SupplierInvoiceDetail: React.FC<SupplierInvoiceDetailProps> = ({ invoiceId
                     <div className="mt-8 flex flex-col items-end">
                         <div className="w-full max-w-sm rounded-lg border border-emerald-200 bg-emerald-50 p-6 space-y-4">
                             <div className="flex justify-between text-gray-600">
-                                <p>المجموع الفرعي</p>
+                                <p>{t('docCreate.subtotal')}</p>
                                 <p className="font-medium text-gray-800">{formatCurrency(invoice.subtotal, invoice.currency.symbol, false)}</p>
                             </div>
                             {invoice.discount.amount > 0 && (
                                 <div className="flex justify-between text-gray-600">
-                                    <p>الخصم ({invoice.discount.type === 'percentage' ? `${invoice.discount.value}%` : formatCurrency(invoice.discount.value, invoice.currency.symbol, false)})</p>
+                                    <p>{t('docCreate.discount')} ({invoice.discount.type === 'percentage' ? `${invoice.discount.value}%` : formatCurrency(invoice.discount.value, invoice.currency.symbol, false)})</p>
                                     <p className="font-medium text-red-500">-{formatCurrency(invoice.discount.amount, invoice.currency.symbol, false)}</p>
                                 </div>
                             )}
                             <div className="flex justify-between text-gray-600">
-                                <p>الضريبة ({invoice.tax.rate}%)</p>
+                                <p>{t('docCreate.tax')} ({invoice.tax.rate}%)</p>
                                 <p className="font-medium text-gray-800">{formatCurrency(invoice.tax.amount, invoice.currency.symbol, false)}</p>
                             </div>
                             <div className="!mt-6 flex justify-between items-center bg-emerald-500 text-white font-bold text-lg p-3 rounded-md">
-                                <p>الإجمالي الكلي</p>
+                                <p>{t('docCreate.grandTotal')}</p>
                                 <p>{formatCurrency(invoice.total, invoice.currency.symbol, true)}</p>
                             </div>
                         </div>
@@ -167,8 +170,8 @@ const SupplierInvoiceDetail: React.FC<SupplierInvoiceDetailProps> = ({ invoiceId
                     <div className="mt-10 pt-8 border-t text-sm text-gray-600">
                          {settings.defaultTerms && (
                             <div className="mb-8">
-                                <h3 className="font-semibold text-gray-800 mb-1">الشروط والأحكام:</h3>
-                                <p className="whitespace-pre-wrap">{settings.defaultTerms}</p>
+                                <h3 className="font-semibold text-gray-800 mb-1">{t('common.termsAndConditions')}:</h3>
+                                <p className="whitespace-pre-wrap">{t(settings.defaultTerms as TranslationKey)}</p>
                             </div>
                         )}
                         {settings.footerImage && (

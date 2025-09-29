@@ -1,12 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import SettingsCard from './shared/SettingsCard';
 import { ImageUploader } from './shared/ImageUploader';
 import { ConfigurableField } from './shared/ConfigurableField';
+import { getPaymentVoucherSettings } from '../../services/mockApi';
+import { TranslationKey } from '../../i18n/translations';
 
 
 const PaymentVoucherSettings: React.FC = () => {
     const { t } = useI18n();
+    const [defaultNotes, setDefaultNotes] = useState('');
+
+    useEffect(() => {
+        const settings = getPaymentVoucherSettings();
+        if (settings) {
+            setDefaultNotes(t(settings.defaultNotes as TranslationKey));
+        }
+    }, [t]);
+
     return (
         <div className="bg-white p-6 rounded-lg shadow-md w-full">
             <style>{`
@@ -58,7 +69,8 @@ const PaymentVoucherSettings: React.FC = () => {
                             name="defaultNotes"
                             rows={4}
                             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500"
-                            defaultValue="هذا السند بمثابة إيصال دفع للمبلغ المذكور أعلاه."
+                            value={defaultNotes}
+                            onChange={(e) => setDefaultNotes(e.target.value)}
                         ></textarea>
                     </div>
                      <ImageUploader label={t('settings.doc.footerImage')} currentImage="https://picsum.photos/seed/payfooter/800/100" />

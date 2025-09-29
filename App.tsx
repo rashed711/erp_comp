@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import Dashboard from './components/dashboard/Dashboard';
@@ -49,6 +49,10 @@ const App: React.FC = () => {
   const [route, setRoute] = useState<Route>({ page: 'dashboard' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
+  useEffect(() => {
+    document.title = t('common.systemTitle');
+  }, [t]);
+
   const handleLoginSuccess = () => {
     sessionStorage.setItem('isLoggedIn', 'true');
     setIsAuthenticated(true);

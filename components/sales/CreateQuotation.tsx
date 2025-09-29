@@ -4,6 +4,8 @@ import { getQuotationSettings, getCustomers as getMockCustomers, getProducts as 
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { API_BASE_URL } from '../../services/api';
+import { useI18n } from '../../i18n/I18nProvider';
+import { TranslationKey } from '../../i18n/translations';
 
 interface CreateQuotationProps {
     onBack: () => void;
@@ -11,6 +13,7 @@ interface CreateQuotationProps {
 }
 
 const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }) => {
+    const { t } = useI18n();
     const isEditMode = !!quotationId;
     
     // Data states
@@ -53,59 +56,95 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             setIsLoading(true);
             setError(null);
             
+            let fetchedCustomers: Customer[] = [];
+
             try {
-                const [customerResult, productResult] = await Promise.allSettled([
+                // Use Promise.allSettled to attempt fetching all resources
+                const results = await Promise.allSettled([
                     fetch(`${API_BASE_URL}customers.php`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } }),
                     fetch(`${API_BASE_URL}products.php`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } })
                 ]);
+                
+                const [customerResult, productResult] = results;
+                const fetchErrors: { name: string; text: string }[] = [];
 
-                const fetchErrors: string[] = [];
-                let fetchedCustomers: Customer[] = [];
-                let fetchedProducts: Product[] = [];
-
-                if (customerResult.status === 'fulfilled' && customerResult.value.ok) {
-                    fetchedCustomers = await customerResult.value.json();
-                    setCustomers(fetchedCustomers);
+                // Process customer data
+                if (customerResult.status === 'fulfilled') {
+                    const response = customerResult.value;
+                    const text = await response.text();
+                    if (response.ok) {
+                        try {
+                            fetchedCustomers = JSON.parse(text);
+                            setCustomers(fetchedCustomers);
+                        } catch (e) {
+                            fetchErrors.push({ name: 'customers.php', text });
+                            setCustomers(getMockCustomers());
+                        }
+                    } else {
+                        fetchErrors.push({ name: 'customers.php', text });
+                        setCustomers(getMockCustomers());
+                    }
                 } else {
-                    fetchErrors.push('customers.php');
+                    fetchErrors.push({ name: 'customers.php', text: customerResult.reason.message });
                     setCustomers(getMockCustomers());
                 }
 
-                if (productResult.status === 'fulfilled' && productResult.value.ok) {
-                    fetchedProducts = await productResult.value.json();
-                    setProducts(fetchedProducts);
+                // Process product data
+                if (productResult.status === 'fulfilled') {
+                    const response = productResult.value;
+                    const text = await response.text();
+                    if (response.ok) {
+                        try {
+                            setProducts(JSON.parse(text));
+                        } catch (e) {
+                            fetchErrors.push({ name: 'products.php', text });
+                            setProducts(getMockProducts());
+                        }
+                    } else {
+                        fetchErrors.push({ name: 'products.php', text });
+                        setProducts(getMockProducts());
+                    }
                 } else {
-                    fetchErrors.push('products.php');
+                    fetchErrors.push({ name: 'products.php', text: productResult.reason.message });
                     setProducts(getMockProducts());
                 }
 
                 if (fetchErrors.length > 0) {
                      const detailedError = (
-                        <div className="text-right space-y-2">
-                            <p><strong>فشل الاتصال بالخادم.</strong> يتم الآن استخدام بيانات تجريبية ولن تتمكن من الحفظ.</p>
-                            <p className="text-sm mt-2">الملفات التي فشل تحميلها: <strong>{fetchErrors.join(', ')}</strong></p>
-                             <p className="text-sm font-semibold mt-3">لإصلاح المشكلة، افتح أدوات المطور (F12) {'->'} Network Tab وتحقق من سبب فشل الطلبات.</p>
+                        <div className="text-right space-y-3">
+                            <p className="font-bold">{t('docCreate.dataLoadErrorDetails.title')}</p>
+                            <p className="text-sm">{t('docCreate.apiWarning')}</p>
+                            <div className="space-y-2">
+                                {fetchErrors.map((err, index) => (
+                                     <details key={index} className="bg-gray-100 p-2 rounded-md">
+                                        <summary className="font-semibold text-sm cursor-pointer">
+                                            {t('docCreate.dataLoadErrorDetails.errorForFile')} {err.name}
+                                        </summary>
+                                        <pre className="mt-2 p-2 bg-gray-800 text-white rounded text-xs text-left whitespace-pre-wrap" dir="ltr">
+                                            {err.text.trim() || 'No response body.'}
+                                        </pre>
+                                    </details>
+                                ))}
+                            </div>
                         </div>
                     );
-                    setError({
-                        message: detailedError,
-                        isWarning: true
-                    });
+                    setError({ message: detailedError, isWarning: true });
                 }
 
                 const settingsData = getQuotationSettings();
                 setSettings(settingsData);
-                if (settingsData) setTerms(settingsData.defaultTerms);
+                // FIX: Use the translation key directly from settings
+                if (settingsData) setTerms(t(settingsData.defaultTerms as TranslationKey));
 
                 const currencySettingsData = getCurrencySettings();
                 setCurrencySettings(currencySettingsData);
 
                 if (isEditMode && quotationId) {
                     if (fetchErrors.length > 0) {
-                        throw new Error("لا يمكن تعديل عرض السعر لأن بيانات العملاء أو المنتجات فشلت في التحميل من الخادم.");
+                        throw new Error(t('docCreate.loadError'));
                     }
                     const quotationRes = await fetch(`${API_BASE_URL}quotations.php?id=${quotationId}`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } });
-                    if (!quotationRes.ok) throw new Error('فشل في تحميل بيانات عرض السعر للتعديل.');
+                    if (!quotationRes.ok) throw new Error(t('docCreate.loadError'));
                     
                     const quotationToEdit = await quotationRes.json();
                     if (quotationToEdit && quotationToEdit.id) {
@@ -127,29 +166,29 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                             unit: item.unit
                         } as DocumentItem)));
                         setNotes(quotationToEdit.notes || '');
-                        setTerms(quotationToEdit.terms || settingsData?.defaultTerms || '');
+                        setTerms(quotationToEdit.terms || t(settingsData?.defaultTerms as TranslationKey) || '');
                         setDiscountValue(Number(quotationToEdit.discount_value));
                         setDiscountType(quotationToEdit.discount_type);
                         setIsTaxable(Number(quotationToEdit.tax_amount) > 0);
                         const currency = currencySettingsData.currencies.find(c => c.code === quotationToEdit.currency_code);
                         setSelectedCurrency(currency || null);
                     } else {
-                        throw new Error('لم يتم العثور على عرض السعر.');
+                        throw new Error(t('quotations.detail.notFound'));
                     }
                 } else {
                     const defaultCurrency = currencySettingsData.currencies.find(c => c.code === currencySettingsData.defaultCurrency);
                     setSelectedCurrency(defaultCurrency || null);
                 }
             } catch (err) {
-                 const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
+                 const errorMessage = err instanceof Error ? err.message : t('error.api.unexpectedError');
                  console.error("Error during initial load:", err);
-                 setError({ message: `خطأ: ${errorMessage}`, isWarning: false });
+                 setError({ message: `${t('docCreate.loadError')}: ${errorMessage}`, isWarning: false });
             } finally {
                 setIsLoading(false);
             }
         };
         initialLoad();
-    }, [quotationId, isEditMode]);
+    }, [quotationId, isEditMode, t]);
 
     useEffect(() => {
         const matchedCustomer = customers.find(c => c.name === customerInput);
@@ -235,19 +274,19 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
 
     const handleSave = async () => {
         if (error?.isWarning) {
-            alert("لا يمكن الحفظ أثناء العمل في وضع عدم الاتصال. يتم عرض بيانات تجريبية فقط.");
+            alert(t('docCreate.apiWarning'));
             return;
         }
         if (!selectedCustomer) {
-            alert('الرجاء اختيار عميل صحيح.');
+            alert(t('docCreate.saveAlert.selectCustomer'));
             return;
         }
         const validItems = items.filter(item => item.productName && item.productName.trim() !== '' && item.productId);
         if (validItems.length === 0) {
-            alert('لا يمكن حفظ عرض سعر فارغ. الرجاء إضافة بند واحد صحيح على الأقل.');
+            alert(t('docCreate.saveAlert.noItems'));
             return;
         }
-
+    
         setIsSaving(true);
         if (error && !error.isWarning) setError(null);
         
@@ -268,7 +307,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             tax_amount: taxAmount,
             total: total,
             currency_code: selectedCurrency?.code,
-            currency_symbol: selectedCurrency?.symbol,
+            currency_symbol: selectedCurrency ? t(selectedCurrency.symbol as TranslationKey) : '',
             items: validItems.map(item => ({
                 product_id: item.productId,
                 description: item.description,
@@ -278,6 +317,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
             }))
         };
         
+        let responseText = '';
         try {
             const response = await fetch(`${API_BASE_URL}quotations.php`, {
                 method: 'POST',
@@ -285,20 +325,48 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                 body: JSON.stringify(payload),
                 cache: 'no-cache',
             });
+            
+            responseText = await response.text();
+    
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`فشل الطلب من الخادم (HTTP ${response.status}). التفاصيل: ${errorText}`);
+                throw new Error(t('error.api.requestFailed'));
             }
-            const result = await response.json();
+    
+            const result = JSON.parse(responseText);
+            
             if (result.success) {
-                alert(isEditMode ? "تم تحديث عرض السعر بنجاح!" : "تم إنشاء عرض السعر بنجاح!");
+                alert(isEditMode ? t('docCreate.saveSuccess.quotation.edit') : t('docCreate.saveSuccess.quotation.create'));
                 onBack();
             } else {
-                throw new Error(result.error || 'فشل حفظ عرض السعر.');
+                throw new Error(result.error || t('docCreate.saveError'));
             }
+    
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'حدث خطأ غير متوقع.';
-            setError({ message: `خطأ في الحفظ: ${errorMessage}`, isWarning: false });
+            let detailedError: React.ReactNode;
+
+            if (err instanceof SyntaxError) {
+                detailedError = (
+                    <div>
+                        <p className="font-bold">{t('error.api.saveFailed.phpError', {item: t('sidebar.quotations')})}</p>
+                        <p className="mt-2 text-sm">{t('error.api.saveFailed.phpErrorDescription', {file: 'quotations.php'})}</p>
+                        <p className="mt-3 font-semibold text-red-700">{t('error.api.saveFailed.serverResponseMessage')}</p>
+                        <pre className="mt-2 p-3 bg-gray-800 text-white rounded-md text-xs text-left whitespace-pre-wrap" dir="ltr">{responseText.trim() || 'No response body from server.'}</pre>
+                        <p className="mt-3 text-sm"><strong>{t('error.api.saveFailed.fixInstruction', {file: 'quotations.php'})}</strong></p>
+                    </div>
+                );
+            } else {
+                const errorMessage = err instanceof Error ? err.message : t('error.api.unexpectedError');
+                detailedError = (
+                    <div>
+                        <p className="font-bold">{t('error.api.saveFailed.serverError', {item: t('sidebar.quotations')})}</p>
+                        <p className="mt-2 text-sm">{t('error.api.saveFailed.serverErrorDescription')}</p>
+                        <p className="mt-3 font-semibold text-red-700">الرسالة الفنية:</p>
+                        <pre className="mt-2 p-3 bg-gray-100 text-gray-800 rounded-md text-xs text-left" dir="ltr">{errorMessage}</pre>
+                    </div>
+                );
+            }
+            
+            setError({ message: detailedError, isWarning: false });
         } finally {
             setIsSaving(false);
         }
@@ -311,7 +379,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <p className="text-gray-600">جاري تحميل البيانات...</p>
+                <p className="text-gray-600">{t('common.loading')}</p>
             </div>
         );
     }
@@ -319,10 +387,10 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
     if (error && !error.isWarning) {
          return (
             <div className="flex flex-col justify-center items-center h-screen bg-gray-100 p-4 text-center">
-                 <h2 className="text-xl font-bold text-red-600 mb-4">حدث خطأ</h2>
+                 <h2 className="text-xl font-bold text-red-600 mb-4">{t('docCreate.loadError')}</h2>
                  <div className="text-red-800 bg-red-100 p-4 rounded-lg">{error.message}</div>
                  <button onClick={onBack} className="mt-6 bg-emerald-600 text-white py-2 px-6 rounded-lg hover:bg-emerald-700">
-                    العودة للخلف
+                    {t('common.back')}
                 </button>
             </div>
         );
@@ -337,13 +405,13 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                           <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" style={{ transform: 'scaleX(-1)' }} />
                       </button>
                       <div>
-                          <h1 className="text-lg sm:text-xl font-bold text-gray-800">{isEditMode ? `تعديل عرض السعر #${quotationId}` : 'إنشاء عرض سعر جديد'}</h1>
-                          <p className="text-xs sm:text-sm text-gray-500">املأ التفاصيل أدناه لحفظ عرض السعر</p>
+                          <h1 className="text-lg sm:text-xl font-bold text-gray-800">{isEditMode ? t('quotations.edit.title', {id: quotationId || ''}) : t('quotations.create.title')}</h1>
+                          <p className="text-xs sm:text-sm text-gray-500">{t('quotations.create.description')}</p>
                       </div>
                   </div>
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                       <button onClick={onBack} className="w-1/2 sm:w-auto text-sm bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 transition-colors">
-                          إلغاء
+                          {t('common.cancel')}
                       </button>
                       <button onClick={handleSave} disabled={isSaving || error?.isWarning} className="w-1/2 sm:w-auto text-sm bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center min-w-[80px]">
                           {isSaving ? (
@@ -351,7 +419,7 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                          ) : 'حفظ'}
+                          ) : t('common.save')}
                       </button>
                   </div>
               </div>
@@ -366,52 +434,52 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                   )}
                   
                   <div className="bg-white p-6 rounded-lg shadow-md">
-                      <h2 className="text-xl font-bold text-gray-800 border-b pb-4 mb-6">تفاصيل عرض السعر</h2>
+                      <h2 className="text-xl font-bold text-gray-800 border-b pb-4 mb-6">{t('docCreate.detailsTitle.quotation')}</h2>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           <div>
-                              <label htmlFor="customer" className="block text-sm font-medium text-gray-700 mb-2">العميل*</label>
-                              <input id="customer" type="text" list="customers-list" value={customerInput} onChange={e => setCustomerInput(e.target.value)} onBlur={handleCustomerNameBlur} placeholder="اختر أو اكتب اسم العميل" className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500" />
+                              <label htmlFor="customer" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.customerLabel')}</label>
+                              <input id="customer" type="text" list="customers-list" value={customerInput} onChange={e => setCustomerInput(e.target.value)} onBlur={handleCustomerNameBlur} placeholder={t('docCreate.customerPlaceholder')} className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500" />
                               <datalist id="customers-list">
                                   {customers.map(c => <option key={c.id} value={c.name} />)}
                               </datalist>
                           </div>
                           <div>
-                              <label htmlFor="contactPerson" className="block text-sm font-medium text-gray-700 mb-2">اسم المسؤول</label>
+                              <label htmlFor="contactPerson" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.contactPersonLabel')}</label>
                               <input type="text" id="contactPerson" value={contactPerson} onChange={e => setContactPerson(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md" />
                           </div>
                           <div>
-                              <label htmlFor="projectName" className="block text-sm font-medium text-gray-700 mb-2">المشروع</label>
+                              <label htmlFor="projectName" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.projectNameLabel')}</label>
                               <input type="text" id="projectName" value={projectName} onChange={e => setProjectName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md" />
                           </div>
                           <div>
-                              <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">التاريخ</label>
+                              <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.dateLabel')}</label>
                               <input type="date" id="date" value={date} onChange={e => setDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"/>
                           </div>
                           <div>
-                              <label htmlFor="expiryDate" className="block text-sm font-medium text-gray-700 mb-2">تاريخ الانتهاء</label>
+                              <label htmlFor="expiryDate" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.expiryDateLabel')}</label>
                               <input type="date" id="expiryDate" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"/>
                           </div>
                           <div>
-                              <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-2">العملة</label>
+                              <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.currencyLabel')}</label>
                               <select id="currency" value={selectedCurrency?.code || ''} onChange={e => setSelectedCurrency(currencySettings?.currencies.find(c => c.code === e.target.value) || null)} className="w-full p-2 border border-gray-300 rounded-md bg-white">
-                                  {currencySettings?.currencies.map(c => <option key={c.code} value={c.code}>{c.name} ({c.symbol})</option>)}
+                                  {currencySettings?.currencies.map(c => <option key={c.code} value={c.code}>{t(c.name as TranslationKey)} ({t(c.symbol as TranslationKey)})</option>)}
                               </select>
                           </div>
                       </div>
                   </div>
 
                   <div className="bg-white p-6 rounded-lg shadow-md">
-                        <h2 className="text-xl font-bold text-gray-800 border-b pb-4 mb-6">البنود</h2>
+                        <h2 className="text-xl font-bold text-gray-800 border-b pb-4 mb-6">{t('docCreate.itemsTitle')}</h2>
                         <div className="overflow-x-auto">
                             <table className="w-full min-w-[700px] text-right">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="p-3 font-semibold text-sm text-gray-600 w-[25%] rounded-r-lg">اسم المنتج</th>
-                                        <th className="p-3 font-semibold text-sm text-gray-600 w-[35%]">الوصف</th>
-                                        <th className="p-3 font-semibold text-sm text-gray-600">الوحدة</th>
-                                        <th className="p-3 font-semibold text-sm text-gray-600">الكمية</th>
-                                        <th className="p-3 font-semibold text-sm text-gray-600">سعر الوحدة</th>
-                                        <th className="p-3 font-semibold text-sm text-gray-600 text-left">الإجمالي</th>
+                                        <th className="p-3 font-semibold text-sm text-gray-600 w-[25%] rounded-r-lg">{t('docCreate.item.name')}</th>
+                                        <th className="p-3 font-semibold text-sm text-gray-600 w-[35%]">{t('docCreate.item.description')}</th>
+                                        <th className="p-3 font-semibold text-sm text-gray-600">{t('docCreate.item.unit')}</th>
+                                        <th className="p-3 font-semibold text-sm text-gray-600">{t('docCreate.item.quantity')}</th>
+                                        <th className="p-3 font-semibold text-sm text-gray-600">{t('docCreate.item.unitPrice')}</th>
+                                        <th className="p-3 font-semibold text-sm text-gray-600 text-left">{t('docCreate.item.total')}</th>
                                         <th className="p-3 font-semibold text-sm text-gray-600 rounded-l-lg w-12"></th>
                                     </tr>
                                 </thead>
@@ -419,13 +487,13 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                                     {items.map((item) => (
                                         <tr key={item.id} className="border-b">
                                             <td className="p-2">
-                                                <input list="products-list" placeholder="اختر منتج" className="w-full p-2 border border-gray-200 rounded-md" value={item.productName || ''} onChange={(e) => handleItemChange(item.id, 'productName', e.target.value)} onBlur={() => handleProductNameBlur(item.id)} />
+                                                <input list="products-list" placeholder={t('docCreate.itemPlaceholder')} className="w-full p-2 border border-gray-200 rounded-md" value={item.productName || ''} onChange={(e) => handleItemChange(item.id, 'productName', e.target.value)} onBlur={() => handleProductNameBlur(item.id)} />
                                             </td>
-                                            <td className="p-2"><input placeholder="وصف البند" className="w-full p-2 border border-gray-200 rounded-md" value={item.description} onChange={(e) => handleItemChange(item.id, 'description', e.target.value)} /></td>
+                                            <td className="p-2"><input placeholder={t('docCreate.descriptionPlaceholder')} className="w-full p-2 border border-gray-200 rounded-md" value={item.description} onChange={(e) => handleItemChange(item.id, 'description', e.target.value)} /></td>
                                             <td className="p-2 text-center align-middle"><span className="text-sm text-gray-600">{item.unit || '-'}</span></td>
                                             <td className="p-2"><input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.id, 'quantity', Number(e.target.value))} className="w-24 p-2 border border-gray-200 rounded-md"/></td>
                                             <td className="p-2"><input type="number" step="0.01" value={item.unitPrice} onChange={(e) => handleItemChange(item.id, 'unitPrice', Number(e.target.value))} className="w-32 p-2 border border-gray-200 rounded-md"/></td>
-                                            <td className="p-2 text-left font-medium align-middle">{formatCurrency(item.total, selectedCurrency?.symbol || 'ر.س', false)}</td>
+                                            <td className="p-2 text-left font-medium align-middle">{formatCurrency(item.total, selectedCurrency ? t(selectedCurrency.symbol as TranslationKey) : '', false)}</td>
                                             <td className="p-2 text-center align-middle"><button onClick={() => handleRemoveItem(item.id)} className="text-gray-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors"><Icons.TrashIcon className="w-5 h-5"/></button></td>
                                         </tr>
                                     ))}
@@ -433,25 +501,25 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                             </table>
                             <datalist id="products-list">{products.map(p => <option key={p.id} value={p.name} />)}</datalist>
                         </div>
-                        <div className="mt-6"><button onClick={handleAddItem} className="text-sm text-emerald-600 font-semibold flex items-center gap-2 hover:text-emerald-800 p-2 rounded-lg hover:bg-emerald-50 transition-colors"><Icons.PlusIcon className="w-5 h-5" />أضف بند جديد</button></div>
+                        <div className="mt-6"><button onClick={handleAddItem} className="text-sm text-emerald-600 font-semibold flex items-center gap-2 hover:text-emerald-800 p-2 rounded-lg hover:bg-emerald-50 transition-colors"><Icons.PlusIcon className="w-5 h-5" />{t('docCreate.addItem')}</button></div>
                     </div>
   
                   <div className="bg-white p-6 rounded-lg shadow-md">
                       <div className="flex flex-col-reverse lg:flex-row justify-between gap-8">
                           <div className="w-full lg:w-1/2 space-y-4">
-                              <div><label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">ملاحظات</label><textarea id="notes" rows={2} value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"></textarea></div>
-                              <div><label htmlFor="terms" className="block text-sm font-medium text-gray-700 mb-2">الشروط والأحكام</label><textarea id="terms" rows={4} value={terms} onChange={e => setTerms(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"></textarea></div>
+                              <div><label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">{t('common.notes')}</label><textarea id="notes" rows={2} value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"></textarea></div>
+                              <div><label htmlFor="terms" className="block text-sm font-medium text-gray-700 mb-2">{t('common.termsAndConditions')}</label><textarea id="terms" rows={4} value={terms} onChange={e => setTerms(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"></textarea></div>
                           </div>
                           <div className="w-full lg:w-1/2">
                               <div className="bg-gray-50 p-6 rounded-lg border space-y-4">
-                                  <h3 className="text-lg font-bold text-gray-800">ملخص الحساب</h3>
-                                  <div className="flex justify-between items-center"><span className="text-gray-600">المجموع الفرعي</span><span className="font-medium text-gray-800">{formatCurrency(subtotal, selectedCurrency?.symbol || 'ر.س', false)}</span></div>
+                                  <h3 className="text-lg font-bold text-gray-800">{t('docCreate.summaryTitle')}</h3>
+                                  <div className="flex justify-between items-center"><span className="text-gray-600">{t('docCreate.subtotal')}</span><span className="font-medium text-gray-800">{formatCurrency(subtotal, selectedCurrency ? t(selectedCurrency.symbol as TranslationKey) : '', false)}</span></div>
                                   <div className="flex justify-between items-center">
-                                      <span className="text-gray-600">الخصم</span>
+                                      <span className="text-gray-600">{t('docCreate.discount')}</span>
                                       <div className="flex items-center gap-1">
                                           <input type="number" id="discount" value={discountValue} onChange={e => setDiscountValue(Number(e.target.value))} className="w-24 p-2 border border-gray-300 rounded-md text-left"/>
                                           <select value={discountType} onChange={e => setDiscountType(e.target.value as 'fixed' | 'percentage')} className="p-2 border border-gray-300 rounded-md bg-white text-sm">
-                                              <option value="fixed">{selectedCurrency?.symbol || 'ر.س'}</option>
+                                              <option value="fixed">{selectedCurrency ? t(selectedCurrency.symbol as TranslationKey) : ''}</option>
                                               <option value="percentage">%</option>
                                           </select>
                                       </div>
@@ -459,13 +527,13 @@ const CreateQuotation: React.FC<CreateQuotationProps> = ({ onBack, quotationId }
                                    <div className="flex justify-between items-center">
                                       <div className="flex items-center">
                                           <input type="checkbox" id="tax-toggle" checked={isTaxable} onChange={e => setIsTaxable(e.target.checked)} className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"/>
-                                          <label htmlFor="tax-toggle" className="mr-2 text-gray-600 cursor-pointer">الضريبة ({taxRate}%)</label>
+                                          <label htmlFor="tax-toggle" className="mr-2 text-gray-600 cursor-pointer">{t('docCreate.tax')} ({taxRate}%)</label>
                                       </div>
-                                      <span className="font-medium text-gray-800">{formatCurrency(taxAmount, selectedCurrency?.symbol || 'ر.س', false)}</span>
+                                      <span className="font-medium text-gray-800">{formatCurrency(taxAmount, selectedCurrency ? t(selectedCurrency.symbol as TranslationKey) : '', false)}</span>
                                   </div>
                                   <div className="flex justify-between items-center pt-4 border-t mt-2">
-                                      <span className="font-bold text-gray-900 text-lg">الإجمالي الكلي</span>
-                                      <span className="font-bold text-emerald-600 text-xl">{formatCurrency(total, selectedCurrency?.symbol || 'ر.س', true)}</span>
+                                      <span className="font-bold text-gray-900 text-lg">{t('docCreate.grandTotal')}</span>
+                                      <span className="font-bold text-emerald-600 text-xl">{formatCurrency(total, selectedCurrency ? t(selectedCurrency.symbol as TranslationKey) : '', true)}</span>
                                   </div>
                               </div>
                           </div>

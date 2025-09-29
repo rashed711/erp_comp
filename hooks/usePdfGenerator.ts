@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useI18n } from '../i18n/I18nProvider';
 
 declare global {
     interface Window {
@@ -14,6 +15,7 @@ interface PdfGeneratorOptions {
 
 export const usePdfGenerator = ({ elementId, fileName }: PdfGeneratorOptions) => {
     const [isProcessing, setIsProcessing] = useState(false);
+    const { t } = useI18n(); // Using i18n for alerts
 
     const generateAndProcessPdf = async (outputType: 'save' | 'share' | 'blob') => {
         setIsProcessing(true);
@@ -83,7 +85,7 @@ export const usePdfGenerator = ({ elementId, fileName }: PdfGeneratorOptions) =>
 
         } catch (error) {
             console.error("Error during PDF processing:", error);
-            alert("حدث خطأ أثناء معالجة ملف PDF.");
+            alert(t('pdf.error'));
             return null;
         } finally {
             // Restore original styles
@@ -102,7 +104,7 @@ export const usePdfGenerator = ({ elementId, fileName }: PdfGeneratorOptions) =>
 
     const sharePdf = async () => {
         if (!navigator.share || !navigator.canShare) {
-            alert('المشاركة غير مدعومة على هذا المتصفح.');
+            alert(t('pdf.shareNotSupported')); 
             return;
         }
         
@@ -113,17 +115,17 @@ export const usePdfGenerator = ({ elementId, fileName }: PdfGeneratorOptions) =>
                 try {
                      await navigator.share({
                         title: fileName,
-                        text: `إليك مستند: ${fileName}`,
+                        text: `${t('common.notes')}: ${fileName}`,
                         files: [pdfFile],
                     });
                 } catch (error) {
                      if ((error as DOMException).name !== 'AbortError') {
                          console.error("Error sharing PDF:", error);
-                         alert("حدث خطأ أثناء مشاركة ملف PDF.");
+                         alert(t('pdf.error'));
                      }
                 }
              } else {
-                 alert('لا يمكن مشاركة ملفات PDF على هذا الجهاز/المتصفح.');
+                 alert(t('pdf.shareFileNotSupported'));
              }
         }
     };

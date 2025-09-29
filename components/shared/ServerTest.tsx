@@ -58,15 +58,15 @@ const ServerTest: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
             if (!response.ok) {
                  if(response.status === 404) {
-                     throw new Error(`فشل الاتصال بالخادم (خطأ 404): الملف test_connection.php غير موجود. تأكد من أنك قمت بإنشاء الملف في المسار الصحيح (${API_BASE_URL}test_connection.php) وأن الخادم (XAMPP) يعمل.`);
+                     throw new Error(t('serverTest.error.404', { url: `${API_BASE_URL}test_connection.php` }));
                  }
-                throw new Error(`فشل الاتصال بالخادم. رمز الحالة: ${response.status}. تأكد من أن Apache يعمل ومن صحة الرابط في api.ts`);
+                throw new Error(t('serverTest.error.fetch', { status: response.status }));
             }
             
             const text = await response.text();
             
             if (text.includes('aes.js')) {
-                 throw new Error('فشل الاتصال بسبب نظام أمان الاستضافة (JavaScript Challenge). يرجى مراجعة الدعم الفني للاستضافة لتعطيل هذه الميزة عن مجلد /api/.');
+                 throw new Error(t('serverTest.error.security'));
             }
 
             const data = JSON.parse(text);
@@ -75,9 +75,9 @@ const ServerTest: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         } catch (err: any) {
             setStatus('error');
             if (err instanceof SyntaxError) {
-                setError("فشل تحليل استجابة الخادم (Invalid JSON). هذا يعني وجود خطأ فادح (Fatal Error) في ملف PHP. تحقق من ملفات الخطأ في XAMPP (apache/logs/error.log) لتحديد المشكلة.");
+                setError(t('serverTest.error.json'));
             } else {
-                 setError(err.message || 'حدث خطأ غير معروف. تأكد من تشغيل XAMPP ومن صحة رابط API.');
+                 setError(err.message || t('serverTest.error.unknown'));
             }
         }
     };

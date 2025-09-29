@@ -1,11 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import SettingsCard from './shared/SettingsCard';
 import { ImageUploader } from './shared/ImageUploader';
 import { ConfigurableField } from './shared/ConfigurableField';
+import { getCustomerAccountStatementSettings } from '../../services/mockApi';
+import { TranslationKey } from '../../i18n/translations';
 
 const CustomerAccountStatementSettings: React.FC = () => {
     const { t } = useI18n();
+    const [defaultNotes, setDefaultNotes] = useState('');
+
+    useEffect(() => {
+        const settings = getCustomerAccountStatementSettings();
+        if (settings) {
+            setDefaultNotes(t(settings.defaultNotes as TranslationKey));
+        }
+    }, [t]);
+
     return (
         <div className="bg-white p-6 rounded-lg shadow-md w-full">
             <style>{`
@@ -58,7 +69,8 @@ const CustomerAccountStatementSettings: React.FC = () => {
                             name="defaultNotes"
                             rows={4}
                             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500"
-                            defaultValue="نشكر لكم حسن تعاملكم معنا. يرجى مراجعة قسم الحسابات في حال وجود أي استفسار."
+                            value={defaultNotes}
+                            onChange={(e) => setDefaultNotes(e.target.value)}
                         ></textarea>
                     </div>
                      <ImageUploader label={t('settings.doc.footerImage')} currentImage="https://picsum.photos/seed/custstmt-footer/800/100" />

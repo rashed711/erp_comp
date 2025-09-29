@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Supplier } from '../../types';
+import { Supplier, Currency, CurrencySettingsConfig } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import { API_BASE_URL } from '../../services/api';
+import { getSuppliers as getMockSuppliers, getCurrencySettings } from '../../services/mockApi';
+import { useI18n } from '../../i18n/I18nProvider';
+import { TranslationKey } from '../../i18n/translations';
 
 interface CreatePaymentVoucherProps {
     onBack: () => void;
@@ -9,10 +12,12 @@ interface CreatePaymentVoucherProps {
 }
 
 const CreatePaymentVoucher: React.FC<CreatePaymentVoucherProps> = ({ onBack, voucherId }) => {
+    const { t } = useI18n();
     const isEditMode = !!voucherId;
 
     // Data states
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const [currencySettings, setCurrencySettings] = useState<CurrencySettingsConfig | null>(null);
 
     // Form states
     const [supplierInput, setSupplierInput] = useState('');
@@ -22,22 +27,40 @@ const CreatePaymentVoucher: React.FC<CreatePaymentVoucherProps> = ({ onBack, vou
     const [paymentMethod, setPaymentMethod] = useState('تحويل بنكي');
     const [notes, setNotes] = useState('');
     const [status, setStatus] = useState<'draft' | 'posted'>('draft');
+    const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null);
 
     // UI states
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<{ message: React.ReactNode; isWarning: boolean } | null>(null);
 
     useEffect(() => {
         const initialLoad = async () => {
             setIsLoading(true);
             setError(null);
+            let suppliersData: Supplier[] = [];
             try {
                 // Fetch suppliers
                 const suppliersRes = await fetch(`${API_BASE_URL}suppliers.php`, { cache: 'no-cache' });
-                if (!suppliersRes.ok) throw new Error('Failed to load suppliers.');
-                const suppliersData = await suppliersRes.json();
-                setSuppliers(suppliersData);
+                const supplierText = await suppliersRes.text();
+                if (!suppliersRes.ok) {
+                    throw new Error(supplierText || 'Failed to load suppliers.');
+                }
+                
+                try {
+                    suppliersData = JSON.parse(supplierText);
+                    setSuppliers(suppliersData);
+                } catch(e) {
+                     const errorDetails = (
+                        <div>
+                           <p className="font-bold">فشل تحميل الموردين بسبب خطأ بالخادم.</p>
+                           <p className="text-sm mt-2">الاستجابة من `suppliers.php` ليست JSON صالحًا. هذا خطأ PHP.</p>
+                           <pre className="mt-2 p-2 bg-gray-800 text-white rounded text-xs text-left whitespace-pre-wrap" dir="ltr">{supplierText}</pre>
+                        </div>
+                    );
+                    setError({ message: errorDetails, isWarning: true });
+                    setSuppliers(getMockSuppliers());
+                }
 
                 // If in edit mode, fetch voucher data
                 if (isEditMode) {
@@ -53,11 +76,21 @@ const CreatePaymentVoucher: React.FC<CreatePaymentVoucherProps> = ({ onBack, vou
                     setPaymentMethod(voucherToEdit.payment_method);
                     setNotes(voucherToEdit.notes || '');
                     setStatus(voucherToEdit.status);
+                    const currency = getCurrencySettings().currencies.find(c => c.code === voucherToEdit.currency_code);
+                    setSelectedCurrency(currency || null);
+                }
+                
+                const currencyData = getCurrencySettings();
+                setCurrencySettings(currencyData);
+                if (!isEditMode) {
+                    const defaultCurrency = currencyData.currencies.find(c => c.code === currencyData.defaultCurrency);
+                    setSelectedCurrency(defaultCurrency || null);
                 }
 
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
-                setError(`Error loading data: ${errorMessage}`);
+                setError({ message: `Error loading data: ${errorMessage}`, isWarning: false });
+                setSuppliers(getMockSuppliers());
             } finally {
                 setIsLoading(false);
             }
@@ -71,6 +104,10 @@ const CreatePaymentVoucher: React.FC<CreatePaymentVoucherProps> = ({ onBack, vou
     }, [supplierInput, suppliers]);
     
     const handleSave = async () => {
+        if (error?.isWarning) {
+            alert("لا يمكن الحفظ أثناء العمل في وضع عدم الاتصال.");
+            return;
+        }
         if (!selectedSupplier) {
             alert('Please select a valid supplier.');
             return;
@@ -91,35 +128,47 @@ const CreatePaymentVoucher: React.FC<CreatePaymentVoucherProps> = ({ onBack, vou
             payment_method: paymentMethod,
             notes,
             status,
+            currency_code: selectedCurrency?.code,
+            currency_symbol: selectedCurrency ? t(selectedCurrency.symbol as TranslationKey) : '',
         };
 
+        let responseText = '';
         try {
             const response = await fetch(`${API_BASE_URL}payment_vouchers.php`, {
-                method: 'POST', // POST handles both create and update
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
 
-            const responseText = await response.text();
+            responseText = await response.text();
 
             if (!response.ok) {
-                throw new Error(`Server request failed (HTTP ${response.status}). Details: ${responseText}`);
+                throw new Error(`Server request failed (HTTP ${response.status}).`);
             }
             
-            try {
-                const result = JSON.parse(responseText);
-                if (result.success) {
-                    alert(isEditMode ? "تم تحديث السند بنجاح!" : "تم إنشاء السند بنجاح!");
-                    onBack();
-                } else {
-                    throw new Error(result.error || 'فشل في حفظ السند.');
-                }
-            } catch (jsonError) {
-                throw new Error(`فشل تحليل استجابة الخادم كـ JSON. قد يكون هناك خطأ في PHP. الاستجابة: ${responseText}`);
+            const result = JSON.parse(responseText);
+            if (result.success) {
+                alert(isEditMode ? "تم تحديث السند بنجاح!" : "تم إنشاء السند بنجاح!");
+                onBack();
+            } else {
+                throw new Error(result.error || 'فشل في حفظ السند.');
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
-            setError(`خطأ في الحفظ: ${errorMessage}`);
+             let detailedError: React.ReactNode;
+            if (err instanceof SyntaxError) {
+                detailedError = (
+                    <div>
+                        <p className="font-bold">فشل الحفظ: خطأ في الخادم.</p>
+                        <p className="mt-2 text-sm">حدث خطأ في ملف PHP يمنعه من إرجاع استجابة صحيحة.</p>
+                        <p className="mt-3 font-semibold text-red-700">الاستجابة من الخادم:</p>
+                        <pre className="mt-2 p-3 bg-gray-800 text-white rounded-md text-xs text-left" dir="ltr">{responseText.trim()}</pre>
+                    </div>
+                );
+            } else {
+                const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
+                detailedError = `خطأ في الحفظ: ${errorMessage}`;
+            }
+            setError({ message: detailedError, isWarning: false });
         } finally {
             setIsSaving(false);
         }
@@ -134,12 +183,12 @@ const CreatePaymentVoucher: React.FC<CreatePaymentVoucherProps> = ({ onBack, vou
                           <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" style={{ transform: 'scaleX(-1)' }} />
                       </button>
                       <div>
-                          <h1 className="text-lg sm:text-xl font-bold text-gray-800">{isEditMode ? `تعديل سند الصرف #${voucherId}` : 'إنشاء سند صرف جديد'}</h1>
+                          <h1 className="text-lg sm:text-xl font-bold text-gray-800">{isEditMode ? t('paymentVouchers.edit.title', {id: voucherId || ''}) : t('paymentVouchers.create.title')}</h1>
                       </div>
                   </div>
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                       <button onClick={onBack} className="w-1/2 sm:w-auto text-sm bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 transition-colors">
-                          إلغاء
+                          {t('common.cancel')}
                       </button>
                       <button onClick={handleSave} disabled={isSaving || isLoading} className="w-1/2 sm:w-auto text-sm bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center min-w-[80px]">
                           {isSaving ? (
@@ -147,7 +196,7 @@ const CreatePaymentVoucher: React.FC<CreatePaymentVoucherProps> = ({ onBack, vou
                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                          ) : (isEditMode ? 'حفظ التعديلات' : 'حفظ')}
+                          ) : (isEditMode ? t('addEditModal.saveChanges') : t('common.save'))}
                       </button>
                   </div>
               </div>
@@ -155,9 +204,9 @@ const CreatePaymentVoucher: React.FC<CreatePaymentVoucherProps> = ({ onBack, vou
   
           <main className="p-4 sm:p-6">
               <div className="max-w-4xl mx-auto space-y-6">
-                 {error && (
-                      <div className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert">
-                          <span className="font-medium">خطأ!</span> {error}
+                  {error && (
+                      <div className={`p-4 mb-4 text-sm rounded-lg ${error.isWarning ? 'bg-yellow-50 text-yellow-800' : 'bg-red-50 text-red-800'}`} role="alert">
+                          {error.message}
                       </div>
                   )}
 
@@ -166,37 +215,43 @@ const CreatePaymentVoucher: React.FC<CreatePaymentVoucherProps> = ({ onBack, vou
                        {isLoading ? <p>جاري تحميل البيانات...</p> : (
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label htmlFor="supplier" className="block text-sm font-medium text-gray-700 mb-2">المورد*</label>
+                                <label htmlFor="supplier" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.supplierLabel')}</label>
                                 <input id="supplier" type="text" list="suppliers-list" value={supplierInput} onChange={e => setSupplierInput(e.target.value)} placeholder="اختر أو اكتب اسم المورد" className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500" />
                                 <datalist id="suppliers-list">
                                     {suppliers.map(s => <option key={s.id} value={s.name} />)}
                                 </datalist>
                             </div>
                             <div>
-                                <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">التاريخ</label>
+                                <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.dateLabel')}</label>
                                 <input type="date" id="date" value={date} onChange={e => setDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md"/>
                             </div>
                              <div>
-                                <label htmlFor="total" className="block text-sm font-medium text-gray-700 mb-2">المبلغ*</label>
+                                <label htmlFor="total" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.amount')}</label>
                                 <input type="number" id="total" value={total} onChange={e => setTotal(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md" placeholder="0.00"/>
                              </div>
+                              <div>
+                                <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.currencyLabel')}</label>
+                                <select id="currency" value={selectedCurrency?.code || ''} onChange={e => setSelectedCurrency(currencySettings?.currencies.find(c => c.code === e.target.value) || null)} className="w-full p-2 border border-gray-300 rounded-md bg-white">
+                                  {currencySettings?.currencies.map(c => <option key={c.code} value={c.code}>{t(c.name as TranslationKey)} ({t(c.symbol as TranslationKey)})</option>)}
+                                </select>
+                             </div>
                              <div>
-                                <label htmlFor="paymentMethod" className="block text-sm font-medium text-gray-700 mb-2">طريقة الدفع</label>
+                                <label htmlFor="paymentMethod" className="block text-sm font-medium text-gray-700 mb-2">{t('docCreate.paymentMethod')}</label>
                                 <select id="paymentMethod" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md bg-white">
-                                    <option>تحويل بنكي</option>
-                                    <option>نقداً</option>
-                                    <option>شيك</option>
+                                    <option>{t('paymentMethod.bank')}</option>
+                                    <option>{t('paymentMethod.cash')}</option>
+                                    <option>{t('paymentMethod.cheque')}</option>
                                 </select>
                             </div>
                              <div className="md:col-span-2">
-                                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">وذلك عن / ملاحظات</label>
+                                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">{t('common.notes')}</label>
                                 <textarea id="notes" value={notes} onChange={e => setNotes(e.target.value)} rows={4} className="w-full p-2 border border-gray-300 rounded-md" placeholder="مثال: سداد فاتورة INV-S-2024-001"></textarea>
                              </div>
                               <div>
-                                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">الحالة</label>
+                                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">{t('common.status')}</label>
                                 <select id="status" value={status} onChange={e => setStatus(e.target.value as 'draft' | 'posted')} className="w-full p-2 border border-gray-300 rounded-md bg-white">
-                                    <option value="draft">مسودة</option>
-                                    <option value="posted">مرحل</option>
+                                    <option value="draft">{t('status.draft')}</option>
+                                    <option value="posted">{t('status.posted')}</option>
                                 </select>
                              </div>
                        </div>

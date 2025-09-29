@@ -4,6 +4,8 @@ import { AccountStatement, AccountStatementSettingsConfig, AccountStatementField
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
+import { useI18n } from '../../i18n/I18nProvider';
+import { TranslationKey } from '../../i18n/translations';
 
 interface SupplierAccountStatementProps {
     supplierId: string;
@@ -11,6 +13,7 @@ interface SupplierAccountStatementProps {
 }
 
 const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ supplierId, onBack }) => {
+    const { t } = useI18n();
     const [statement, setStatement] = useState<AccountStatement | null>(null);
     const [settings, setSettings] = useState<AccountStatementSettingsConfig | null>(null);
     const [companySettings, setCompanySettings] = useState<CompanySettingsConfig | null>(null);
@@ -18,7 +21,7 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
 
     const { downloadPdf, isProcessing } = usePdfGenerator({
         elementId: 'printable-statement',
-        fileName: `Supplier-Statement-${statement?.contactId}`
+        fileName: `${t('pdf.fileName.supplierStatement')}-${statement?.contactId}`
     });
 
     const [startDate, setStartDate] = useState<string>(() => {
@@ -94,11 +97,11 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
         const { openingBalance, totalCredit, totalDebit, closingBalance } = periodSummary;
 
         const summaryItems = [
-            { key: 'openingBalance', label: 'الرصيد الافتتاحي للفترة', value: openingBalance, color: 'gray' },
-            { key: 'totalDebit', label: 'إجمالي الفواتير (مدين)', value: totalDebit, color: 'red' },
-            { key: 'totalCredit', label: 'إجمالي المدفوعات (دائن)', value: totalCredit, color: 'green' },
-            { key: 'closingBalance', label: 'الرصيد الختامي', value: closingBalance, color: 'emerald' },
-        ] as const;
+            { key: 'openingBalance' as const, labelKey: 'accountStatement.summary.openingBalance', value: openingBalance, color: 'gray' },
+            { key: 'totalDebit' as const, labelKey: 'accountStatement.summary.totalDebitSupplier', value: totalDebit, color: 'red' },
+            { key: 'totalCredit' as const, labelKey: 'accountStatement.summary.totalCredit', value: totalCredit, color: 'green' },
+            { key: 'closingBalance' as const, labelKey: 'accountStatement.summary.closingBalance', value: closingBalance, color: 'emerald' },
+        ];
 
         const visibleItems = summaryItems.filter(item => findField(item.key));
 
@@ -110,7 +113,7 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                     const field = findField(item.key);
                     return(
                          <div key={item.key} className={`bg-${item.color}-50 p-4 rounded-lg`}>
-                            <p className={`text-sm text-${item.color}-600`}>{field?.label || item.label}</p>
+                            <p className={`text-sm text-${item.color}-600`}>{field ? t(field.label as TranslationKey) : t(item.labelKey as TranslationKey)}</p>
                             <p className={`text-lg font-bold text-${item.color}-800`}>{formatCurrency(item.value, statement.currency.symbol)}</p>
                         </div>
                     );
@@ -120,11 +123,11 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
     };
 
     if (loading) {
-        return <div className="flex items-center justify-center h-screen"><p>جاري تحميل كشف الحساب...</p></div>;
+        return <div className="flex items-center justify-center h-screen"><p>{t('accountStatement.loading')}</p></div>;
     }
 
     if (!statement || !settings || !companySettings) {
-        return <div className="flex items-center justify-center h-screen"><p>لم يتم العثور على كشف الحساب أو إعداداته.</p></div>;
+        return <div className="flex items-center justify-center h-screen"><p>{t('accountStatement.notFound')}</p></div>;
     }
     
     return (
@@ -136,13 +139,13 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                             <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" style={{transform: 'scaleX(-1)'}}/>
                         </button>
                         <div>
-                             <h1 className="text-lg sm:text-xl font-bold text-emerald-600">كشف حساب مورد</h1>
+                             <h1 className="text-lg sm:text-xl font-bold text-emerald-600">{t('accountStatement.supplier.title')}</h1>
                              <p className="text-xs sm:text-sm text-gray-500">{statement.contactName}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                          <div className="flex items-center gap-2 border-l-2 border-gray-200 pl-3 ml-3">
-                             <label htmlFor="startDate" className="text-sm font-medium text-gray-600">من:</label>
+                             <label htmlFor="startDate" className="text-sm font-medium text-gray-600">{t('common.from')}:</label>
                              <input
                                  type="date"
                                  id="startDate"
@@ -150,7 +153,7 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                                  onChange={(e) => setStartDate(e.target.value)}
                                  className="w-36 p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500"
                              />
-                             <label htmlFor="endDate" className="text-sm font-medium text-gray-600">إلى:</label>
+                             <label htmlFor="endDate" className="text-sm font-medium text-gray-600">{t('common.to')}:</label>
                              <input
                                  type="date"
                                  id="endDate"
@@ -168,7 +171,7 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                            ) : (
                             <Icons.DownloadIcon className="w-4 h-4" />
                            )}
-                            <span className="hidden sm:inline">{isProcessing ? 'جاري...' : 'تحميل'}</span>
+                            <span className="hidden sm:inline">{isProcessing ? t('common.processing') : t('common.download')}</span>
                         </button>
                     </div>
                 </div>
@@ -184,22 +187,22 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                     )}
                     <div className="flex justify-between items-start pb-8 border-b border-gray-200">
                         <div>
-                            <h1 className="text-3xl font-bold text-emerald-600">كشف حساب</h1>
-                            {findField('contactInfo') && <p className="text-gray-500 mt-1">{findField('contactInfo')?.label}: {statement.contactName}</p>}
-                            {findField('statementDate') && <p className="text-gray-500 mt-1">{findField('statementDate')?.label}: {statement.statementDate}</p>}
+                            <h1 className="text-3xl font-bold text-emerald-600">{t('accountStatement.title')}</h1>
+                            {findField('contactInfo') && <p className="text-gray-500 mt-1">{t(findField('contactInfo')?.label as TranslationKey)}: {statement.contactName}</p>}
+                            {findField('statementDate') && <p className="text-gray-500 mt-1">{t(findField('statementDate')?.label as TranslationKey)}: {statement.statementDate}</p>}
                         </div>
                          {findField('ourCompanyInfo') && (
                             <div className="text-right">
-                               <h2 className="text-2xl font-bold text-emerald-600">{companySettings.companyName}</h2>
-                               <p className="text-gray-500">{companySettings.address}</p>
+                               <h2 className="text-2xl font-bold text-emerald-600">{t(companySettings.companyName as TranslationKey)}</h2>
+                               <p className="text-gray-500">{t(companySettings.address as TranslationKey)}</p>
                             </div>
                         )}
                     </div>
 
                     <div className="flex justify-end items-center text-sm text-gray-500 my-4">
-                        <span>الفترة من: <span className="font-medium text-gray-700">{startDate}</span></span>
+                        <span>{t('common.from')}: <span className="font-medium text-gray-700">{startDate}</span></span>
                         <span className="mx-2">|</span>
-                        <span>إلى: <span className="font-medium text-gray-700">{endDate}</span></span>
+                        <span>{t('common.to')}: <span className="font-medium text-gray-700">{endDate}</span></span>
                     </div>
 
                     {/* Summary */}
@@ -210,12 +213,12 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                         <table className="w-full text-right">
                             <thead className="bg-emerald-500 text-white">
                                 <tr>
-                                    <th className="p-3 font-semibold text-sm text-right rounded-r-lg">التاريخ</th>
-                                    <th className="p-3 font-semibold text-sm text-right">المستند</th>
-                                    <th className="p-3 font-semibold text-sm text-right">الوصف</th>
-                                    <th className="p-3 font-semibold text-sm text-center">مدين</th>
-                                    <th className="p-3 font-semibold text-sm text-center">دائن</th>
-                                    <th className="p-3 font-semibold text-sm text-left rounded-l-lg">الرصيد</th>
+                                    <th className="p-3 font-semibold text-sm text-right rounded-r-lg">{t('common.date')}</th>
+                                    <th className="p-3 font-semibold text-sm text-right">{t('accountStatement.table.document')}</th>
+                                    <th className="p-3 font-semibold text-sm text-right">{t('accountStatement.table.description')}</th>
+                                    <th className="p-3 font-semibold text-sm text-center">{t('accountStatement.table.debit')}</th>
+                                    <th className="p-3 font-semibold text-sm text-center">{t('accountStatement.table.credit')}</th>
+                                    <th className="p-3 font-semibold text-sm text-left rounded-l-lg">{t('accountStatement.table.balance')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -231,15 +234,15 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                                 ))}
                             </tbody>
                         </table>
-                         {filteredEntries.length === 0 && <p className="text-center text-gray-500 py-8">لا توجد حركات لعرضها في هذه الفترة.</p>}
+                         {filteredEntries.length === 0 && <p className="text-center text-gray-500 py-8">{t('accountStatement.noEntries')}</p>}
                     </div>
                      
                     {/* Footer */}
                      <div className="mt-10 pt-8 border-t text-sm text-gray-600">
                         {settings.defaultNotes && (
                             <div className="mb-8">
-                                <h3 className="font-semibold text-gray-800 mb-1">ملاحظات:</h3>
-                                <p className="whitespace-pre-wrap">{settings.defaultNotes}</p>
+                                <h3 className="font-semibold text-gray-800 mb-1">{t('common.notes')}:</h3>
+                                <p className="whitespace-pre-wrap">{t(settings.defaultNotes as TranslationKey)}</p>
                             </div>
                         )}
                         {settings.footerImage && (

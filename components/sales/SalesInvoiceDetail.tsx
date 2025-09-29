@@ -4,6 +4,8 @@ import { SalesInvoice, SalesInvoiceSettingsConfig } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
+import { useI18n } from '../../i18n/I18nProvider';
+import { TranslationKey } from '../../i18n/translations';
 
 interface SalesInvoiceDetailProps {
     invoiceId: string;
@@ -11,13 +13,14 @@ interface SalesInvoiceDetailProps {
 }
 
 const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBack }) => {
+    const { t } = useI18n();
     const [invoice, setInvoice] = useState<SalesInvoice | null>(null);
     const [settings, setSettings] = useState<SalesInvoiceSettingsConfig | null>(null);
     const [loading, setLoading] = useState(true);
 
     const { downloadPdf, isProcessing } = usePdfGenerator({
         elementId: 'printable-invoice',
-        fileName: `Invoice-${invoice?.id}`
+        fileName: `${t('pdf.fileName.invoice')}-${invoice?.id}`
     });
 
     useEffect(() => {
@@ -56,7 +59,7 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                     
                     return (
                         <div key={field.key} className="md:col-span-1 flex justify-between items-start border-b pb-2">
-                           <p className="font-semibold text-gray-600">{field.label}:</p>
+                           <p className="font-semibold text-gray-600">{t(field.label as TranslationKey)}:</p>
                            <p className="text-gray-800 font-medium text-left">{value}</p>
                         </div>
                     );
@@ -66,11 +69,11 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
     };
 
     if (loading) {
-        return <div className="flex items-center justify-center h-screen"><p>جاري تحميل الفاتورة...</p></div>;
+        return <div className="flex items-center justify-center h-screen"><p>{t('salesInvoices.detail.loading')}</p></div>;
     }
 
     if (!invoice || !settings) {
-        return <div className="flex items-center justify-center h-screen"><p>لم يتم العثور على الفاتورة أو الإعدادات الخاصة بها.</p></div>;
+        return <div className="flex items-center justify-center h-screen"><p>{t('salesInvoices.detail.notFound')}</p></div>;
     }
 
     return (
@@ -82,7 +85,7 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                             <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" style={{transform: 'scaleX(-1)'}}/>
                         </button>
                         <div>
-                             <h1 className="text-lg sm:text-xl font-bold text-emerald-600">فاتورة #{invoice.id}</h1>
+                             <h1 className="text-lg sm:text-xl font-bold text-emerald-600">{t('salesInvoices.detail.title', { id: invoice.id })}</h1>
                              <p className="text-xs sm:text-sm text-gray-500">{invoice.customer.name}</p>
                         </div>
                     </div>
@@ -96,7 +99,7 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                            ) : (
                             <Icons.DownloadIcon className="w-4 h-4" />
                            )}
-                            <span className="hidden sm:inline">{isProcessing ? 'جاري...' : 'تحميل'}</span>
+                            <span className="hidden sm:inline">{isProcessing ? t('common.processing') : t('common.download')}</span>
                         </button>
                     </div>
                 </div>
@@ -119,10 +122,10 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                         <table className="w-full text-right">
                             <thead className="bg-emerald-500 text-white">
                                 <tr>
-                                    <th className="p-3 font-semibold text-sm text-right rounded-r-lg">البند</th>
-                                    <th className="p-3 font-semibold text-sm text-center">الكمية</th>
-                                    <th className="p-3 font-semibold text-sm text-center">سعر الوحدة</th>
-                                    <th className="p-3 font-semibold text-sm text-left rounded-l-lg">الإجمالي</th>
+                                    <th className="p-3 font-semibold text-sm text-right rounded-r-lg">{t('docCreate.item.description')}</th>
+                                    <th className="p-3 font-semibold text-sm text-center">{t('docCreate.item.quantity')}</th>
+                                    <th className="p-3 font-semibold text-sm text-center">{t('docCreate.item.unitPrice')}</th>
+                                    <th className="p-3 font-semibold text-sm text-left rounded-l-lg">{t('docCreate.item.total')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -142,21 +145,21 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                     <div className="mt-8 flex flex-col items-end">
                         <div className="w-full max-w-sm rounded-lg border border-emerald-200 bg-emerald-50 p-6 space-y-4">
                             <div className="flex justify-between text-gray-600">
-                                <p>المجموع الفرعي</p>
+                                <p>{t('docCreate.subtotal')}</p>
                                 <p className="font-medium text-gray-800">{formatCurrency(invoice.subtotal, invoice.currency.symbol, false)}</p>
                             </div>
                             {invoice.discount.amount > 0 && (
                                 <div className="flex justify-between text-gray-600">
-                                    <p>الخصم ({invoice.discount.type === 'percentage' ? `${invoice.discount.value}%` : formatCurrency(invoice.discount.value, invoice.currency.symbol, false)})</p>
+                                    <p>{t('docCreate.discount')} ({invoice.discount.type === 'percentage' ? `${invoice.discount.value}%` : formatCurrency(invoice.discount.value, invoice.currency.symbol, false)})</p>
                                     <p className="font-medium text-red-500">-{formatCurrency(invoice.discount.amount, invoice.currency.symbol, false)}</p>
                                 </div>
                             )}
                             <div className="flex justify-between text-gray-600">
-                                <p>الضريبة ({invoice.tax.rate}%)</p>
+                                <p>{t('docCreate.tax')} ({invoice.tax.rate}%)</p>
                                 <p className="font-medium text-gray-800">{formatCurrency(invoice.tax.amount, invoice.currency.symbol, false)}</p>
                             </div>
                             <div className="!mt-6 flex justify-between items-center bg-emerald-500 text-white font-bold text-lg p-3 rounded-md">
-                                <p>الإجمالي الكلي</p>
+                                <p>{t('docCreate.grandTotal')}</p>
                                 <p>{formatCurrency(invoice.total, invoice.currency.symbol, true)}</p>
                             </div>
                         </div>
@@ -166,8 +169,8 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                     <div className="mt-10 pt-8 border-t text-sm text-gray-600">
                          {settings.defaultTerms && (
                             <div className="mb-8">
-                                <h3 className="font-semibold text-gray-800 mb-1">الشروط والأحكام:</h3>
-                                <p className="whitespace-pre-wrap">{settings.defaultTerms}</p>
+                                <h3 className="font-semibold text-gray-800 mb-1">{t('common.termsAndConditions')}:</h3>
+                                <p className="whitespace-pre-wrap">{t(settings.defaultTerms as TranslationKey)}</p>
                             </div>
                         )}
                         {/* Dynamic Footer Image */}

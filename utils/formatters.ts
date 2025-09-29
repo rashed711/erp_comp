@@ -2,7 +2,7 @@
 
 /**
  * Converts a string or number to its string representation.
- * The original function converted numbers to Eastern Arabic numerals, but this has been reverted.
+ * Kept for consistency, though it no longer converts to Eastern Arabic numerals.
  * @param input The string or number to convert.
  * @returns A string representation of the input.
  */
@@ -14,7 +14,7 @@ export const toArabic = (input: string | number): string => {
 /**
  * Formats a number as a currency value with a given symbol.
  * @param amount The number to format.
- * @param currencySymbol The currency symbol to append (e.g., 'ج.م', 'ر.س', '$').
+ * @param currencySymbol The currency symbol to append (e.g., 'ج.م', 'SAR', '$').
  * @param showSymbol Whether to show the currency symbol. Defaults to true.
  * @returns A formatted currency string.
  */
@@ -62,14 +62,4 @@ export const extractTime = (dateTimeString: string, lang: 'ar' | 'en' = 'ar'): s
 export const extractDate = (dateTimeString: string): string => {
   if (!dateTimeString) return '';
   return dateTimeString.split(' ')[0];
-};
-
-/**
- * Formats a number as a currency value in SAR.
- * @param amount The number to format.
- * @param showSymbol Whether to show the currency symbol. Defaults to true.
- * @returns A formatted currency string in SAR.
- */
-export const formatCurrencySAR = (amount: number, showSymbol: boolean = true): string => {
-    return formatCurrency(amount, 'ر.س', showSymbol);
 };

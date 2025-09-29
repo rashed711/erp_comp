@@ -38,7 +38,7 @@ const SupplierInvoices: React.FC<SupplierInvoicesProps> = ({ onNavigate }) => {
                 }
     
                 if (!response.ok) {
-                    throw new Error(`فشل الجلب. استجاب الخادم بحالة ${response.status}.`);
+                    throw new Error(`Fetch failed. Server responded with status ${response.status}.`);
                 }
                 
                 const data = JSON.parse(text);
@@ -69,46 +69,46 @@ const SupplierInvoices: React.FC<SupplierInvoicesProps> = ({ onNavigate }) => {
                 if (err.message === 'HOSTING_SECURITY_CHALLENGE') {
                     detailedError = (
                         <div>
-                            <p className="font-bold">تم اكتشاف المشكلة: نظام أمان الاستضافة يمنع الوصول.</p>
-                            <p className="mt-2">يقوم خادم الاستضافة الخاص بك بإرجاع "صفحة تحقق JavaScript" بدلاً من البيانات المطلوبة. هذا الإجراء الأمني هو السبب المباشر لخطأ "Invalid JSON response" ويجب تعطيله لواجهة API لكي يعمل التطبيق.</p>
-                            <p className="mt-3 font-semibold text-red-700">الحل النهائي (يرجى إرساله للدعم الفني):</p>
-                            <p>تواصل مع الدعم الفني لشركة الاستضافة فورًا وأرسل لهم هذه الرسالة (باللغة الإنجليزية لضمان الوضوح):</p>
-                             <pre className="mt-2 p-3 bg-gray-100 text-gray-800 rounded-md text-xs text-left" dir="ltr">
-                                {`Hello,\n\nMy frontend application is making API requests to my PHP scripts in the /api/ directory. Your server's security system (e.g., WAF, Anti-Bot) is blocking these requests by returning a JavaScript challenge page.\n\nThis is preventing my application from functioning correctly. Please whitelist my /api/ directory and disable the "JavaScript Challenge" / "Bot Protection" security feature for that specific path.\n\nThank you.`}
-                             </pre>
-                             <p className="mt-2">بعد أن يقوموا بتعطيل هذه الميزة، ستُحل المشكلة نهائياً.</p>
-                        </div>
+                           <p className="font-bold">{t('error.api.hostingSecurityChallenge.title')}</p>
+                           <p className="mt-2">{t('error.api.hostingSecurityChallenge.description')}</p>
+                           <p className="mt-3 font-semibold text-red-700">{t('error.api.hostingSecurityChallenge.solutionTitle')}</p>
+                           <p>{t('error.api.hostingSecurityChallenge.solutionInstruction')}</p>
+                           <pre className="mt-2 p-3 bg-gray-100 text-gray-800 rounded-md text-xs text-left" dir="ltr">
+                               {t('error.api.hostingSecurityChallenge.solutionMessage')}
+                           </pre>
+                           <p className="mt-2">{t('error.api.hostingSecurityChallenge.solutionNote')}</p>
+                       </div>
                     );
                 } else if (err instanceof SyntaxError) {
                      detailedError = (
                         <div>
-                            <p className="font-bold">فشل تحليل استجابة الخادم (Invalid JSON).</p>
-                            <p className="mt-2">هذا يعني غالبًا وجود خطأ برمجي (Fatal Error) في ملف PHP يمنعه من إخراج بيانات JSON صحيحة.</p>
-                            <p className="mt-3 font-semibold">اذهب إلى صفحة "تشخيص الاتصال" لتحديد المشكلة بدقة.</p>
+                            <p className="font-bold">{t('error.api.jsonParseFailure.title')}</p>
+                            <p className="mt-2">{t('error.api.jsonParseFailure.description')}</p>
+                            <p className="mt-3 font-semibold">{t('error.api.jsonParseFailure.action')}</p>
                         </div>
                     );
                 } else {
                     detailedError = (
                         <div>
-                            <p className="font-bold text-lg mb-2">فشل الاتصال بالخادم (خطأ في الشبكة)</p>
-                            <p className="mb-3">حاول متصفحك طلب البيانات من الخادم، لكن الخادم رفض الاتصال. هذه المشكلة <strong>ليست خطأً في برمجة التطبيق</strong>، بل هي مشكلة في إعدادات الخادم الذي تستضيف عليه ملفات PHP.</p>
+                            <p className="font-bold text-lg mb-2">{t('error.api.networkError.title')}</p>
+                            <p className="mb-3">{t('error.api.networkError.description')}</p>
                             
                             <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                                <p className="font-semibold text-red-800">السبب الأكثر شيوعاً: مشكلة CORS</p>
-                                <p className="text-sm mt-1">يمنع الخادم الخاص بك هذا الموقع من الوصول إلى بياناته كإجراء أمني افتراضي.</p>
+                                <p className="font-semibold text-red-800">{t('error.api.networkError.cause')}</p>
+                                <p className="text-sm mt-1">{t('error.api.networkError.causeDescription')}</p>
                             </div>
                 
-                            <p className="mt-4 font-semibold text-gray-800">الحل المضمون (لإرساله للدعم الفني):</p>
-                            <p className="text-sm mt-1">تواصل مع الدعم الفني لشركة الاستضافة وأرسل لهم هذه الرسالة (يفضل باللغة الإنجليزية):</p>
+                            <p className="mt-4 font-semibold text-gray-800">{t('error.api.networkError.solutionTitle')}</p>
+                            <p className="text-sm mt-1">{t('error.api.networkError.solutionInstruction')}</p>
                             <pre className="mt-2 p-3 bg-gray-100 text-gray-800 rounded-md text-xs text-left leading-relaxed" dir="ltr">
-                                {`Subject: Urgent - CORS Policy Blocking API Access\n\nHello Support Team,\n\nMy frontend application, hosted at [Your Website URL], cannot access my PHP API located in the /api/ directory on my server.\n\nThe browser's console shows a "Cross-Origin Resource Sharing (CORS)" error, which means the server is blocking the requests.\n\nPlease add the following HTTP header to the configuration for the /api/ directory to resolve this issue:\n\nAccess-Control-Allow-Origin: *\n\nThis will allow my application to function correctly. Thank you.`}
+                                {t('error.api.networkError.solutionMessage')}
                             </pre>
-                            <p className="text-xs mt-1 text-gray-500">ملاحظة: استبدل [Your Website URL] برابط موقعك الفعلي.</p>
+                            <p className="text-xs mt-1 text-gray-500">{t('error.api.networkError.solutionNote')}</p>
                 
-                            <p className="mt-4 font-semibold text-gray-800">لتشخيص إضافي:</p>
+                            <p className="mt-4 font-semibold text-gray-800">{t('error.api.networkError.diagnosisTitle')}</p>
                             <button onClick={() => onNavigate({ page: 'serverTest' })} className="mt-2 w-full text-center bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 transition-colors font-semibold flex items-center justify-center">
                                 <Icons.AdjustmentsHorizontalIcon className="w-5 h-5 inline-block ml-2" />
-                                انقر هنا لتشغيل أداة تشخيص الخادم
+                                {t('error.api.networkError.diagnosisAction')}
                             </button>
                         </div>
                     );
@@ -120,7 +120,7 @@ const SupplierInvoices: React.FC<SupplierInvoicesProps> = ({ onNavigate }) => {
         };
 
         fetchInvoices();
-    }, [onNavigate]);
+    }, [onNavigate, t]);
 
     const filteredInvoices = useMemo(() => {
         setCurrentPage(1);
@@ -167,13 +167,13 @@ const SupplierInvoices: React.FC<SupplierInvoicesProps> = ({ onNavigate }) => {
 
     const handleDeleteInvoice = async () => {
         if (invoiceToDelete) {
-           alert("ميزة الحذف قيد التطوير.");
+           alert(t('common.featureUnderDev'));
            handleCloseDeleteModal();
         }
     };
 
     const handleEditInvoice = (id: string) => {
-        alert(`ميزة التعديل لهذه الصفحة قيد التطوير حاليًا.`);
+        alert(t('common.featureUnderDev'));
     };
 
     return (
