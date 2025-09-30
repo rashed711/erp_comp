@@ -74,7 +74,7 @@ export const usePdfGenerator = ({ elementId, fileName }: PdfGeneratorOptions) =>
                     setIsProcessing(false);
                 },
                 margin: 15,
-                autoPaging: 'text',
+                autoPaging: 'slice',
                 width: 180, // A4 width (210mm) - margins (15mm * 2)
                 windowWidth: element.scrollWidth,
                 html2canvas: {
