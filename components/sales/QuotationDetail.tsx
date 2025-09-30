@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Quotation, QuotationSettingsConfig, DocumentItem, ContactInfo, QuotationFieldConfig, Product } from '../../types';
+import { Quotation, QuotationSettingsConfig, DocumentItem, ContactInfo, QuotationFieldConfig, Product, CompanySettingsConfig } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
-import { translations, TranslationKey } from '../../i18n/translations';
+import { TranslationKey } from '../../i18n/translations';
 import { API_BASE_URL } from '../../services/api';
-import { getCurrencySettings } from '../../services/mockApi';
+import { getCompanySettings, getCurrencySettings } from '../../services/mockApi';
+import { useI18n } from '../../i18n/I18nProvider';
 
 interface QuotationDetailProps {
     quotationId: string;
@@ -14,19 +15,11 @@ interface QuotationDetailProps {
 }
 
 const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, onNavigate }) => {
-    // Force English and LTR for this component
-    const t = useCallback((key: TranslationKey, replacements?: { [key: string]: string | number }): string => {
-        let translation = translations[key]?.['en'] || key;
-        if (replacements) {
-            Object.keys(replacements).forEach(placeholder => {
-                translation = translation.replace(`{${placeholder}}`, String(replacements[placeholder]));
-            });
-        }
-        return translation;
-    }, []);
+    const { t, direction } = useI18n();
 
     const [quotation, setQuotation] = useState<Quotation | null>(null);
     const [settings, setSettings] = useState<QuotationSettingsConfig | null>(null);
+    const [companySettings, setCompanySettings] = useState<CompanySettingsConfig | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -42,11 +35,7 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
         if (isExternalUrl(imagePath)) {
             return imagePath;
         }
-
-        // Sanitize the path: remove leading slashes or "uploads/" prefix
-        // This makes it robust whether the DB stores "header.png" or "uploads/header.png"
         const sanitizedPath = imagePath.replace(/^uploads\//, '').replace(/^\//, '');
-
         return `${API_BASE_URL}image_proxy.php?path=${encodeURIComponent(sanitizedPath)}`;
     };
 
@@ -56,6 +45,8 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
             setError(null);
             try {
                 const currencySettingsData = getCurrencySettings();
+                const companyData = getCompanySettings();
+                setCompanySettings(companyData);
 
                 const [quotationResponse, settingsResponse, productsResponse] = await Promise.all([
                     fetch(`${API_BASE_URL}quotations.php?id=${quotationId}`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } }),
@@ -167,7 +158,7 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
 
     const renderDataFields = () => {
         if (!settings || !quotation) return null;
-
+    
         const dataMap: { [key: string]: { value: any; details?: (string | undefined)[] } } = {
             customerInfo: { value: quotation.customer.name, details: [quotation.customer.address, quotation.customer.email, quotation.customer.phone] },
             contactPerson: { value: quotation.contactPerson || '-' },
@@ -177,19 +168,22 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
             date: { value: quotation.date },
             expiryDate: { value: quotation.expiryDate }
         };
-
+    
         const visibleFields = settings.fields.filter(f => f.isEnabled);
-
+    
+        const textAlignmentClass = direction === 'rtl' ? 'text-right' : 'text-left';
+        const fieldAlignmentClass = direction === 'rtl' ? 'text-left' : 'text-right';
+    
         return (
             <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 mt-8">
                 {visibleFields.map(field => {
                     const data = dataMap[field.key];
                     if (!data) return null;
-
+    
                     return (
                         <div key={field.key} className="md:col-span-1 flex justify-between items-start border-b pb-2">
-                           <p className="font-semibold text-gray-600 text-sm">{t(field.label as TranslationKey)}:</p>
-                           <p className="text-gray-800 font-medium text-sm" style={{textAlign: 'left'}}>{data.value}</p>
+                            <p className={`font-semibold text-gray-600 text-sm ${textAlignmentClass}`}>{t(field.label as TranslationKey)}:</p>
+                            <p className={`text-gray-800 font-medium text-sm ${fieldAlignmentClass}`}>{data.value}</p>
                         </div>
                     );
                 })}
@@ -201,8 +195,8 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
         return <div className="flex items-center justify-center h-screen"><p>{t('quotations.detail.loading')}</p></div>;
     }
 
-    if (!quotation || !settings) {
-        return <div className="flex items-center justify-center h-screen"><p>{t('quotations.detail.notFound')}</p></div>;
+    if (error || !quotation || !settings) {
+        return <div className="flex items-center justify-center h-screen"><p>{error || t('quotations.detail.notFound')}</p></div>;
     }
     
     const headerImageUrl = getImageUrl(settings.headerImage);
@@ -210,13 +204,17 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
     const finalTerms = quotation.terms || (settings ? t(settings.defaultTerms as TranslationKey) : '');
     const currencySymbol = quotation.currency.symbol;
 
+    const tableHeaderClass = direction === 'rtl' ? 'text-right' : 'text-left';
+    const tableCellClass = direction === 'rtl' ? 'text-right' : 'text-left';
+    const totalCellClass = direction === 'rtl' ? 'text-left' : 'text-right';
+
     return (
         <div className="bg-gray-100 min-h-screen">
             <header className="bg-white shadow-sm p-4 sticky top-0 z-30 no-print">
                 <div className="container mx-auto flex justify-between items-center">
                     <div className="flex items-center gap-4">
                         <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                            <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" />
+                            <Icons.ArrowLeftIcon className={`w-6 h-6 text-gray-700 ${direction === 'rtl' ? 'transform scale-x-[-1]' : ''}`} />
                         </button>
                         <div>
                              <h1 className="text-lg sm:text-xl font-bold text-emerald-600">{t('quotations.detail.title', {id: quotation.id})}</h1>
@@ -244,90 +242,84 @@ const QuotationDetail: React.FC<QuotationDetailProps> = ({ quotationId, onBack, 
             </header>
 
             <main className="p-4 sm:p-6 md:p-8">
-                 <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg">
-                    <div id="printable-quotation" className="p-8 sm:p-10 md:p-12" dir="ltr">
-                        <div data-pdf-section="header">
-                            {headerImageUrl && (
-                                <div className="mb-8">
-                                    <img src={headerImageUrl} alt="Header" className="w-full h-auto object-contain" />
+                 <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg overflow-x-auto">
+                    <div id="printable-quotation" className="p-8 sm:p-10 md:p-12 bg-white min-w-[800px]" dir={direction}>
+                        {headerImageUrl && (
+                            <div className="mb-8" style={{ pageBreakInside: 'avoid' }}>
+                                <img src={headerImageUrl} alt="Header" className="w-full h-auto object-contain" />
+                            </div>
+                        )}
+                        
+                        {renderDataFields()}
+                        
+                        <div className="mt-10 overflow-x-auto">
+                            <table className={`w-full ${tableHeaderClass}`}>
+                                <thead className="bg-emerald-500 text-white">
+                                    <tr>
+                                        <th className="p-2 font-semibold text-xs text-center w-10">#</th>
+                                        <th className={`p-2 font-semibold text-xs ${tableHeaderClass}`}>{t('docCreate.item.name')}</th>
+                                        <th className={`p-2 font-semibold text-xs ${tableHeaderClass}`}>{t('docCreate.item.description')}</th>
+                                        <th className="p-2 font-semibold text-xs text-center">{t('docCreate.item.quantity')}</th>
+                                        <th className="p-2 font-semibold text-xs text-center">{t('docCreate.item.unitPrice')}</th>
+                                        <th className={`p-2 font-semibold text-xs ${totalCellClass}`}>{t('docCreate.item.total')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {quotation.items.map((item, index) => (
+                                        <tr key={item.id} className="border-b text-sm" style={{ pageBreakInside: 'avoid' }}>
+                                            <td className="p-2 text-center text-gray-600">{index + 1}</td>
+                                            <td className={`p-2 font-medium text-gray-800 ${tableCellClass}`}>{item.productName}</td>
+                                            <td className={`p-2 ${tableCellClass}`}>{item.description}</td>
+                                            <td className="p-2 text-center">{item.quantity}</td>
+                                            <td className="p-2 text-center">{formatCurrency(item.unitPrice, currencySymbol, false)}</td>
+                                            <td className={`p-2 ${totalCellClass}`}>{formatCurrency(item.total, currencySymbol, false)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div className="mt-8 flex flex-col items-end" style={{ pageBreakInside: 'avoid' }}>
+                            <div className="w-full max-w-sm rounded-lg border border-emerald-200 bg-emerald-50 p-4 space-y-2">
+                                <div className="flex justify-between text-gray-600 text-sm">
+                                    <p>{t('docCreate.subtotal')}</p>
+                                    <p className="font-medium text-gray-800">{formatCurrency(quotation.subtotal, currencySymbol, false)}</p>
+                                </div>
+                                {quotation.discount.amount > 0 && (
+                                    <div className="flex justify-between text-gray-600 text-sm">
+                                        <p>{t('docCreate.discount')} ({quotation.discount.type === 'percentage' ? `${quotation.discount.value}%` : formatCurrency(quotation.discount.value, currencySymbol, false)})</p>
+                                        <p className="font-medium text-red-500">-{formatCurrency(quotation.discount.amount, currencySymbol, false)}</p>
+                                    </div>
+                                )}
+                                <div className="flex justify-between text-gray-600 text-sm">
+                                    <p>{t('docCreate.tax')} ({quotation.tax.rate}%)</p>
+                                    <p className="font-medium text-gray-800">{formatCurrency(quotation.tax.amount, currencySymbol, false)}</p>
+                                </div>
+                                <div className="!mt-4 flex justify-between items-center bg-emerald-500 text-white font-bold text-base p-2 rounded-md">
+                                    <p>{t('docCreate.grandTotal')}</p>
+                                    <p>{formatCurrency(quotation.total, currencySymbol, true)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="mt-10 pt-8 border-t text-xs text-gray-600" style={{ pageBreakInside: 'avoid' }}>
+                            {quotation.notes && (
+                                <div className="mb-6">
+                                    <h3 className="font-semibold text-gray-800 mb-1 text-sm">{t('common.notes')}:</h3>
+                                    <p className="whitespace-pre-wrap">{quotation.notes}</p>
                                 </div>
                             )}
-                        </div>
-                        
-                        <div data-pdf-section="content">
-                            {renderDataFields()}
-                            
-                            <div className="mt-10 overflow-x-auto">
-                                <table className="w-full" style={{textAlign: 'left'}}>
-                                    <thead className="bg-emerald-500 text-white">
-                                        <tr>
-                                            <th className="p-2 font-semibold text-xs text-center w-10 rounded-tl-lg rounded-bl-lg">#</th>
-                                            <th className="p-2 font-semibold text-xs" style={{textAlign: 'left'}}>{t('docCreate.item.name')}</th>
-                                            <th className="p-2 font-semibold text-xs" style={{textAlign: 'left'}}>{t('docCreate.item.description')}</th>
-                                            <th className="p-2 font-semibold text-xs text-center">{t('docCreate.item.quantity')}</th>
-                                            <th className="p-2 font-semibold text-xs text-center">{t('docCreate.item.unitPrice')}</th>
-                                            <th className="p-2 font-semibold text-xs rounded-tr-lg rounded-br-lg" style={{textAlign: 'right'}}>{t('docCreate.item.total')}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {quotation.items.map((item, index) => (
-                                            <tr key={item.id} className="border-b text-sm">
-                                                <td className="p-2 text-center text-gray-600">{index + 1}</td>
-                                                <td className="p-2 font-medium text-gray-800">{item.productName}</td>
-                                                <td className="p-2" style={{textAlign: 'left'}}>{item.description}</td>
-                                                <td className="p-2 text-center">{item.quantity}</td>
-                                                <td className="p-2 text-center">{formatCurrency(item.unitPrice, currencySymbol, false)}</td>
-                                                <td className="p-2" style={{textAlign: 'right'}}>{formatCurrency(item.total, currencySymbol, false)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        
-                        <div data-pdf-section="footer">
-                            <div className="mt-8 flex flex-col items-end">
-                                <div className="w-full max-w-sm rounded-lg border border-emerald-200 bg-emerald-50 p-4 space-y-2">
-                                    <div className="flex justify-between text-gray-600 text-sm">
-                                        <p>{t('docCreate.subtotal')}</p>
-                                        <p className="font-medium text-gray-800">{formatCurrency(quotation.subtotal, currencySymbol, false)}</p>
-                                    </div>
-                                    {quotation.discount.amount > 0 && (
-                                        <div className="flex justify-between text-gray-600 text-sm">
-                                            <p>{t('docCreate.discount')} ({quotation.discount.type === 'percentage' ? `${quotation.discount.value}%` : formatCurrency(quotation.discount.value, currencySymbol, false)})</p>
-                                            <p className="font-medium text-red-500">-{formatCurrency(quotation.discount.amount, currencySymbol, false)}</p>
-                                        </div>
-                                    )}
-                                    <div className="flex justify-between text-gray-600 text-sm">
-                                        <p>{t('docCreate.tax')} ({quotation.tax.rate}%)</p>
-                                        <p className="font-medium text-gray-800">{formatCurrency(quotation.tax.amount, currencySymbol, false)}</p>
-                                    </div>
-                                    <div className="!mt-4 flex justify-between items-center bg-emerald-500 text-white font-bold text-base p-2 rounded-md">
-                                        <p>{t('docCreate.grandTotal')}</p>
-                                        <p>{formatCurrency(quotation.total, currencySymbol, true)}</p>
-                                    </div>
+                            {finalTerms && (
+                                <div className="mb-6">
+                                    <h3 className="font-semibold text-gray-800 mb-1 text-sm">{t('common.termsAndConditions')}:</h3>
+                                    <p className="whitespace-pre-wrap">{finalTerms}</p>
                                 </div>
-                            </div>
-                            
-                            <div className="mt-10 pt-8 border-t text-xs text-gray-600">
-                                {quotation.notes && (
-                                    <div className="mb-6">
-                                        <h3 className="font-semibold text-gray-800 mb-1 text-sm">{t('common.notes')}:</h3>
-                                        <p className="whitespace-pre-wrap">{quotation.notes}</p>
-                                    </div>
-                                )}
-                                {finalTerms && (
-                                    <div className="mb-6">
-                                        <h3 className="font-semibold text-gray-800 mb-1 text-sm">{t('common.termsAndConditions')}:</h3>
-                                        <p className="whitespace-pre-wrap">{finalTerms}</p>
-                                    </div>
-                                )}
-                                {footerImageUrl && (
-                                    <div className="pt-8">
-                                        <img src={footerImageUrl} alt="Footer" className="w-full h-auto object-contain" />
-                                    </div>
-                                )}
-                            </div>
+                            )}
+                            {footerImageUrl && (
+                                <div className="pt-8">
+                                    <img src={footerImageUrl} alt="Footer" className="w-full h-auto object-contain" />
+                                </div>
+                            )}
                         </div>
                     </div>
                  </div>

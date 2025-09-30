@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getSupplierAccountStatementSettings, getCompanySettings, getCurrencySettings } from '../../services/mockApi';
 import { AccountStatement, AccountStatementSettingsConfig, AccountStatementFieldConfig, CompanySettingsConfig, AccountStatementEntry } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
-import { translations, TranslationKey } from '../../i18n/translations';
+import { useI18n } from '../../i18n/I18nProvider';
+import { TranslationKey } from '../../i18n/translations';
 import { API_BASE_URL } from '../../services/api';
 
 interface SupplierAccountStatementProps {
@@ -13,16 +14,7 @@ interface SupplierAccountStatementProps {
 }
 
 const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ supplierId, onBack }) => {
-    // Force English and LTR for PDF generation
-    const t = useCallback((key: TranslationKey, replacements?: { [key: string]: string | number }): string => {
-        let translation = translations[key]?.['en'] || key;
-        if (replacements) {
-            Object.keys(replacements).forEach(placeholder => {
-                translation = translation.replace(`{${placeholder}}`, String(replacements[placeholder]));
-            });
-        }
-        return translation;
-    }, []);
+    const { t, direction } = useI18n();
 
     const [statement, setStatement] = useState<AccountStatement | null>(null);
     const [settings, setSettings] = useState<AccountStatementSettingsConfig | null>(null);
@@ -193,7 +185,7 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                 {visibleItems.map(item => {
                     const field = findField(item.key);
                     return(
-                         <div key={item.key} className={`bg-${item.color}-50 p-4 rounded-lg`}>
+                         <div key={item.key} className={`bg-${item.color}-50 p-4 rounded-lg`} style={{ pageBreakInside: 'avoid' }}>
                             <p className={`text-sm text-${item.color}-600`}>{field ? t(field.label as TranslationKey) : t(item.labelKey as TranslationKey)}</p>
                             <p className={`text-lg font-bold text-${item.color}-800`}>{formatCurrency(item.value, statement.currency.symbol)}</p>
                         </div>
@@ -284,8 +276,8 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
 
             <main className="p-4 sm:p-6 md:p-8">
                 <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg">
-                    <div id="printable-statement" className="p-8 sm:p-10 md:p-12" dir="ltr">
-                        <div data-pdf-section="header">
+                    <div id="printable-statement" className="p-8 sm:p-10 md:p-12" dir={direction}>
+                        <div data-pdf-section="header" style={{ pageBreakInside: 'avoid' }}>
                             {settings.headerImage && (
                                 <div className="mb-8">
                                     <img src={getImageUrl(settings.headerImage) || ''} alt="Header" className="w-full h-auto object-contain" />
@@ -316,26 +308,26 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                             {renderSummary()}
                             
                             <div className="mt-10 overflow-x-auto">
-                                <table className="w-full" style={{textAlign: 'left'}}>
+                                <table className="w-full text-right">
                                     <thead className="bg-emerald-500 text-white">
                                         <tr>
-                                            <th className="p-3 font-semibold text-sm rounded-tl-lg rounded-bl-lg" style={{textAlign: 'left'}}>{t('common.date')}</th>
-                                            <th className="p-3 font-semibold text-sm" style={{textAlign: 'left'}}>{t('accountStatement.table.document')}</th>
-                                            <th className="p-3 font-semibold text-sm" style={{textAlign: 'left'}}>{t('accountStatement.table.description')}</th>
+                                            <th className="p-3 font-semibold text-sm rounded-r-lg">{t('common.date')}</th>
+                                            <th className="p-3 font-semibold text-sm">{t('accountStatement.table.document')}</th>
+                                            <th className="p-3 font-semibold text-sm">{t('accountStatement.table.description')}</th>
                                             <th className="p-3 font-semibold text-sm text-center">{t('accountStatement.table.debit')}</th>
                                             <th className="p-3 font-semibold text-sm text-center">{t('accountStatement.table.credit')}</th>
-                                            <th className="p-3 font-semibold text-sm rounded-tr-lg rounded-br-lg" style={{textAlign: 'right'}}>{t('accountStatement.table.balance')}</th>
+                                            <th className="p-3 font-semibold text-sm text-left rounded-l-lg">{t('accountStatement.table.balance')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredEntries.map((entry, index) => (
-                                            <tr key={index} className="border-b">
+                                            <tr key={index} className="border-b" style={{ pageBreakInside: 'avoid' }}>
                                                 <td className="p-3">{entry.date}</td>
                                                 <td className="p-3 text-emerald-600">{entry.transactionId}</td>
                                                 <td className="p-3">{entry.description}</td>
                                                 <td className="p-3 text-center text-red-600">{entry.debit > 0 ? formatCurrency(entry.debit, statement.currency.symbol, false) : '-'}</td>
                                                 <td className="p-3 text-center text-green-600">{entry.credit > 0 ? formatCurrency(entry.credit, statement.currency.symbol, false) : '-'}</td>
-                                                <td className="p-3 font-medium" style={{textAlign: 'right'}}>{formatCurrency(entry.balance, statement.currency.symbol, false)}</td>
+                                                <td className="p-3 font-medium text-left">{formatCurrency(entry.balance, statement.currency.symbol, false)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -344,7 +336,7 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                             </div>
                         </div>
 
-                        <div data-pdf-section="footer">
+                        <div data-pdf-section="footer" style={{ pageBreakInside: 'avoid' }}>
                             <div className="mt-10 pt-8 border-t text-sm text-gray-600">
                                 {settings.defaultNotes && (
                                     <div className="mb-8">

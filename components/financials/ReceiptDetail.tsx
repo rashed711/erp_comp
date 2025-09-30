@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getReceiptById, getReceiptSettings } from '../../services/mockApi';
 import { Receipt, ReceiptSettingsConfig, ReceiptFieldConfig } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
-import { translations, TranslationKey } from '../../i18n/translations';
+import { useI18n } from '../../i18n/I18nProvider';
+import { TranslationKey } from '../../i18n/translations';
 import { API_BASE_URL } from '../../services/api';
 
 interface ReceiptDetailProps {
@@ -13,16 +14,7 @@ interface ReceiptDetailProps {
 }
 
 const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
-    // Force English and LTR for PDF generation
-    const t = useCallback((key: TranslationKey, replacements?: { [key: string]: string | number }): string => {
-        let translation = translations[key]?.['en'] || key;
-        if (replacements) {
-            Object.keys(replacements).forEach(placeholder => {
-                translation = translation.replace(`{${placeholder}}`, String(replacements[placeholder]));
-            });
-        }
-        return translation;
-    }, []);
+    const { t, direction } = useI18n();
 
     const [receipt, setReceipt] = useState<Receipt | null>(null);
     const [settings, setSettings] = useState<ReceiptSettingsConfig | null>(null);
@@ -78,7 +70,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
         return (
             <div className="flex justify-between items-start border-b pb-3">
                 <p className="font-semibold text-gray-600">{t(field.label as TranslationKey)}:</p>
-                <div className="text-gray-800 font-medium max-w-xs" style={{textAlign: 'left'}}>{value}</div>
+                <div className="text-gray-800 font-medium max-w-xs text-left">{value}</div>
             </div>
         );
     };
@@ -109,8 +101,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
                            {isProcessing ? (
                             <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8
- 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
                            ) : (
                             <Icons.DownloadIcon className="w-4 h-4" />
@@ -123,8 +114,8 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
 
             <main className="p-4 sm:p-6 md:p-8">
                  <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg">
-                    <div id="printable-receipt" className="p-8 sm:p-10 md:p-12" dir="ltr">
-                        <div data-pdf-section="header">
+                    <div id="printable-receipt" className="p-8 sm:p-10 md:p-12" dir={direction}>
+                        <div data-pdf-section="header" style={{ pageBreakInside: 'avoid' }}>
                             {settings.headerImage && (
                                 <div className="mb-8">
                                     <img src={getImageUrl(settings.headerImage) || ''} alt="Header" className="w-full h-auto object-contain" />
@@ -132,7 +123,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
                             )}
                         </div>
 
-                        <div data-pdf-section="content">
+                        <div data-pdf-section="content" style={{ pageBreakInside: 'avoid' }}>
                             <div className="flex justify-between items-center mb-10">
                                 <h1 className="text-3xl font-bold text-emerald-600">{t('sidebar.receipts')}</h1>
                                 <div className="text-left">
@@ -150,7 +141,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
                             </div>
                         </div>
                         
-                        <div data-pdf-section="footer">
+                        <div data-pdf-section="footer" style={{ pageBreakInside: 'avoid' }}>
                             <div className="mt-16 pt-8 border-t text-sm text-gray-600">
                                 {settings.footerImage && (
                                     <div className="pt-8">

@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getSalesInvoiceById, getSalesInvoiceSettings } from '../../services/mockApi';
 import { SalesInvoice, SalesInvoiceSettingsConfig } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
-import { translations, TranslationKey } from '../../i18n/translations';
+import { useI18n } from '../../i18n/I18nProvider';
+import { TranslationKey } from '../../i18n/translations';
 import { API_BASE_URL } from '../../services/api';
 
 interface SalesInvoiceDetailProps {
@@ -13,16 +14,7 @@ interface SalesInvoiceDetailProps {
 }
 
 const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBack }) => {
-    // Force English and LTR for PDF generation
-    const t = useCallback((key: TranslationKey, replacements?: { [key: string]: string | number }): string => {
-        let translation = translations[key]?.['en'] || key;
-        if (replacements) {
-            Object.keys(replacements).forEach(placeholder => {
-                translation = translation.replace(`{${placeholder}}`, String(replacements[placeholder]));
-            });
-        }
-        return translation;
-    }, []);
+    const { t, direction } = useI18n();
 
     const [invoice, setInvoice] = useState<SalesInvoice | null>(null);
     const [settings, setSettings] = useState<SalesInvoiceSettingsConfig | null>(null);
@@ -92,7 +84,7 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                     return (
                         <div key={field.key} className="md:col-span-1 flex justify-between items-start border-b pb-2">
                            <p className="font-semibold text-gray-600">{t(field.label as TranslationKey)}:</p>
-                           <p className="text-gray-800 font-medium" style={{textAlign: 'left'}}>{value}</p>
+                           <p className="text-gray-800 font-medium text-left">{value}</p>
                         </div>
                     );
                 })}
@@ -139,8 +131,8 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
 
             <main className="p-4 sm:p-6 md:p-8">
                  <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg">
-                    <div id="printable-invoice" className="p-8 sm:p-10 md:p-12" dir="ltr">
-                        <div data-pdf-section="header">
+                    <div id="printable-invoice" className="p-8 sm:p-10 md:p-12" dir={direction}>
+                        <div data-pdf-section="header" style={{ pageBreakInside: 'avoid' }}>
                             {settings.headerImage && (
                                 <div className="mb-8">
                                     <img src={getImageUrl(settings.headerImage) || ''} alt="Header" className="w-full h-auto object-contain" />
@@ -152,22 +144,22 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                             {renderDataFields()}
                         
                             <div className="mt-10 overflow-x-auto">
-                                <table className="w-full" style={{textAlign: 'left'}}>
+                                <table className="w-full text-right">
                                     <thead className="bg-emerald-500 text-white">
                                         <tr>
-                                            <th className="p-3 font-semibold text-sm rounded-tl-lg rounded-bl-lg" style={{textAlign: 'left'}}>{t('docCreate.item.description')}</th>
+                                            <th className="p-3 font-semibold text-sm rounded-r-lg">{t('docCreate.item.description')}</th>
                                             <th className="p-3 font-semibold text-sm text-center">{t('docCreate.item.quantity')}</th>
                                             <th className="p-3 font-semibold text-sm text-center">{t('docCreate.item.unitPrice')}</th>
-                                            <th className="p-3 font-semibold text-sm rounded-tr-lg rounded-br-lg" style={{textAlign: 'right'}}>{t('docCreate.item.total')}</th>
+                                            <th className="p-3 font-semibold text-sm text-left rounded-l-lg">{t('docCreate.item.total')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {invoice.items.map(item => (
-                                            <tr key={item.id} className="border-b">
+                                            <tr key={item.id} className="border-b" style={{ pageBreakInside: 'avoid' }}>
                                                 <td className="p-3">{item.description}</td>
                                                 <td className="p-3 text-center">{item.quantity}</td>
                                                 <td className="p-3 text-center">{formatCurrency(item.unitPrice, invoice.currency.symbol, false)}</td>
-                                                <td className="p-3" style={{textAlign: 'right'}}>{formatCurrency(item.total, invoice.currency.symbol, false)}</td>
+                                                <td className="p-3 text-left">{formatCurrency(item.total, invoice.currency.symbol, false)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -176,7 +168,7 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                         </div>
                         
                         <div data-pdf-section="footer">
-                            <div className="mt-8 flex flex-col items-end">
+                            <div className="mt-8 flex flex-col items-end" style={{ pageBreakInside: 'avoid' }}>
                                 <div className="w-full max-w-sm rounded-lg border border-emerald-200 bg-emerald-50 p-6 space-y-4">
                                     <div className="flex justify-between text-gray-600">
                                         <p>{t('docCreate.subtotal')}</p>
@@ -199,7 +191,7 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                                 </div>
                             </div>
 
-                            <div className="mt-10 pt-8 border-t text-sm text-gray-600">
+                            <div className="mt-10 pt-8 border-t text-sm text-gray-600" style={{ pageBreakInside: 'avoid' }}>
                                 {settings.defaultTerms && (
                                     <div className="mb-8">
                                         <h3 className="font-semibold text-gray-800 mb-1">{t('common.termsAndConditions')}:</h3>
