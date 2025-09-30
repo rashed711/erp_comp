@@ -1,11 +1,10 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { getSupplierAccountStatementSettings, getCompanySettings } from '../../services/mockApi';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { getSupplierAccountStatementSettings, getCompanySettings, getCurrencySettings } from '../../services/mockApi';
 import { AccountStatement, AccountStatementSettingsConfig, AccountStatementFieldConfig, CompanySettingsConfig, AccountStatementEntry } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
-import { useI18n } from '../../i18n/I18nProvider';
-import { TranslationKey } from '../../i18n/translations';
+import { translations, TranslationKey } from '../../i18n/translations';
 import { API_BASE_URL } from '../../services/api';
 
 interface SupplierAccountStatementProps {
@@ -14,7 +13,17 @@ interface SupplierAccountStatementProps {
 }
 
 const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ supplierId, onBack }) => {
-    const { t } = useI18n();
+    // Force English and LTR for PDF generation
+    const t = useCallback((key: TranslationKey, replacements?: { [key: string]: string | number }): string => {
+        let translation = translations[key]?.['en'] || key;
+        if (replacements) {
+            Object.keys(replacements).forEach(placeholder => {
+                translation = translation.replace(`{${placeholder}}`, String(replacements[placeholder]));
+            });
+        }
+        return translation;
+    }, []);
+
     const [statement, setStatement] = useState<AccountStatement | null>(null);
     const [settings, setSettings] = useState<AccountStatementSettingsConfig | null>(null);
     const [companySettings, setCompanySettings] = useState<CompanySettingsConfig | null>(null);
@@ -33,6 +42,21 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
     });
     const [endDate, setEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
     const [filteredEntries, setFilteredEntries] = useState<AccountStatementEntry[]>([]);
+
+    const getImageUrl = (imagePath: string | null) => {
+        if (!imagePath) return null;
+        const isExternalUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://');
+        
+        if (isExternalUrl(imagePath)) {
+            return imagePath;
+        }
+
+        // Sanitize the path: remove leading slashes or "uploads/" prefix
+        // This makes it robust whether the DB stores "header.png" or "uploads/header.png"
+        const sanitizedPath = imagePath.replace(/^uploads\//, '').replace(/^\//, '');
+
+        return `${API_BASE_URL}image_proxy.php?path=${encodeURIComponent(sanitizedPath)}`;
+    };
 
     useEffect(() => {
         const fetchStatement = async () => {
@@ -57,6 +81,12 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                 if(data.error) {
                     throw new Error(data.error);
                 }
+                
+                const currencySettingsData = getCurrencySettings();
+                const currencyInfo = currencySettingsData.currencies.find(c => c.code === data.currency.code);
+                const translatedSymbol = currencyInfo ? t(currencyInfo.symbol as TranslationKey) : data.currency.symbol;
+                data.currency.symbol = translatedSymbol;
+
                 setStatement(data);
 
                 const settingsData = getSupplierAccountStatementSettings();
@@ -211,7 +241,7 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                 <div className="container mx-auto flex justify-between items-center flex-wrap gap-4">
                     <div className="flex items-center gap-4">
                         <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                            <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" style={{transform: 'scaleX(-1)'}}/>
+                            <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700"/>
                         </button>
                         <div>
                              <h1 className="text-lg sm:text-xl font-bold text-emerald-600">{t('accountStatement.supplier.title')}</h1>
@@ -253,78 +283,82 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
             </header>
 
             <main className="p-4 sm:p-6 md:p-8">
-                 <div id="printable-statement" className="max-w-4xl mx-auto bg-white p-8 sm:p-10 md:p-12 rounded-lg shadow-lg">
-                    {/* Header */}
-                    {settings.headerImage && (
-                        <div className="mb-8">
-                            <img src={settings.headerImage} alt="Header" className="w-full h-auto object-contain" />
+                <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg">
+                    <div id="printable-statement" className="p-8 sm:p-10 md:p-12" dir="ltr">
+                        <div data-pdf-section="header">
+                            {settings.headerImage && (
+                                <div className="mb-8">
+                                    <img src={getImageUrl(settings.headerImage) || ''} alt="Header" className="w-full h-auto object-contain" />
+                                </div>
+                            )}
+                            <div className="flex justify-between items-start pb-8 border-b border-gray-200">
+                                <div>
+                                    <h1 className="text-3xl font-bold text-emerald-600">{t('accountStatement.title')}</h1>
+                                    {findField('contactInfo') && <p className="text-gray-500 mt-1">{t(findField('contactInfo')?.label as TranslationKey)}: {statement.contactName}</p>}
+                                    {findField('statementDate') && <p className="text-gray-500 mt-1">{t(findField('statementDate')?.label as TranslationKey)}: {statement.statementDate}</p>}
+                                </div>
+                                {findField('ourCompanyInfo') && (
+                                    <div className="text-right">
+                                    <h2 className="text-2xl font-bold text-emerald-600">{t(companySettings.companyName as TranslationKey)}</h2>
+                                    <p className="text-gray-500">{t(companySettings.address as TranslationKey)}</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    )}
-                    <div className="flex justify-between items-start pb-8 border-b border-gray-200">
-                        <div>
-                            <h1 className="text-3xl font-bold text-emerald-600">{t('accountStatement.title')}</h1>
-                            {findField('contactInfo') && <p className="text-gray-500 mt-1">{t(findField('contactInfo')?.label as TranslationKey)}: {statement.contactName}</p>}
-                            {findField('statementDate') && <p className="text-gray-500 mt-1">{t(findField('statementDate')?.label as TranslationKey)}: {statement.statementDate}</p>}
+
+                        <div data-pdf-section="content">
+                            <div className="flex justify-end items-center text-sm text-gray-500 my-4">
+                                <span>{t('common.from')}: <span className="font-medium text-gray-700">{startDate}</span></span>
+                                <span className="mx-2">|</span>
+                                <span>{t('common.to')}: <span className="font-medium text-gray-700">{endDate}</span></span>
+                            </div>
+
+                            {renderSummary()}
+                            
+                            <div className="mt-10 overflow-x-auto">
+                                <table className="w-full" style={{textAlign: 'left'}}>
+                                    <thead className="bg-emerald-500 text-white">
+                                        <tr>
+                                            <th className="p-3 font-semibold text-sm rounded-tl-lg rounded-bl-lg" style={{textAlign: 'left'}}>{t('common.date')}</th>
+                                            <th className="p-3 font-semibold text-sm" style={{textAlign: 'left'}}>{t('accountStatement.table.document')}</th>
+                                            <th className="p-3 font-semibold text-sm" style={{textAlign: 'left'}}>{t('accountStatement.table.description')}</th>
+                                            <th className="p-3 font-semibold text-sm text-center">{t('accountStatement.table.debit')}</th>
+                                            <th className="p-3 font-semibold text-sm text-center">{t('accountStatement.table.credit')}</th>
+                                            <th className="p-3 font-semibold text-sm rounded-tr-lg rounded-br-lg" style={{textAlign: 'right'}}>{t('accountStatement.table.balance')}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredEntries.map((entry, index) => (
+                                            <tr key={index} className="border-b">
+                                                <td className="p-3">{entry.date}</td>
+                                                <td className="p-3 text-emerald-600">{entry.transactionId}</td>
+                                                <td className="p-3">{entry.description}</td>
+                                                <td className="p-3 text-center text-red-600">{entry.debit > 0 ? formatCurrency(entry.debit, statement.currency.symbol, false) : '-'}</td>
+                                                <td className="p-3 text-center text-green-600">{entry.credit > 0 ? formatCurrency(entry.credit, statement.currency.symbol, false) : '-'}</td>
+                                                <td className="p-3 font-medium" style={{textAlign: 'right'}}>{formatCurrency(entry.balance, statement.currency.symbol, false)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {filteredEntries.length === 0 && <p className="text-center text-gray-500 py-8">{t('accountStatement.noEntries')}</p>}
+                            </div>
                         </div>
-                         {findField('ourCompanyInfo') && (
-                            <div className="text-right">
-                               <h2 className="text-2xl font-bold text-emerald-600">{t(companySettings.companyName as TranslationKey)}</h2>
-                               <p className="text-gray-500">{t(companySettings.address as TranslationKey)}</p>
-                            </div>
-                        )}
-                    </div>
 
-                    <div className="flex justify-end items-center text-sm text-gray-500 my-4">
-                        <span>{t('common.from')}: <span className="font-medium text-gray-700">{startDate}</span></span>
-                        <span className="mx-2">|</span>
-                        <span>{t('common.to')}: <span className="font-medium text-gray-700">{endDate}</span></span>
-                    </div>
-
-                    {/* Summary */}
-                    {renderSummary()}
-                    
-                    {/* Transactions Table */}
-                    <div className="mt-10 overflow-x-auto">
-                        <table className="w-full text-right">
-                            <thead className="bg-emerald-500 text-white">
-                                <tr>
-                                    <th className="p-3 font-semibold text-sm text-right rounded-r-lg">{t('common.date')}</th>
-                                    <th className="p-3 font-semibold text-sm text-right">{t('accountStatement.table.document')}</th>
-                                    <th className="p-3 font-semibold text-sm text-right">{t('accountStatement.table.description')}</th>
-                                    <th className="p-3 font-semibold text-sm text-center">{t('accountStatement.table.debit')}</th>
-                                    <th className="p-3 font-semibold text-sm text-center">{t('accountStatement.table.credit')}</th>
-                                    <th className="p-3 font-semibold text-sm text-left rounded-l-lg">{t('accountStatement.table.balance')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredEntries.map((entry, index) => (
-                                    <tr key={index} className="border-b">
-                                        <td className="p-3">{entry.date}</td>
-                                        <td className="p-3 text-emerald-600">{entry.transactionId}</td>
-                                        <td className="p-3">{entry.description}</td>
-                                        <td className="p-3 text-center text-red-600">{entry.debit > 0 ? formatCurrency(entry.debit, statement.currency.symbol, false) : '-'}</td>
-                                        <td className="p-3 text-center text-green-600">{entry.credit > 0 ? formatCurrency(entry.credit, statement.currency.symbol, false) : '-'}</td>
-                                        <td className="p-3 text-left font-medium">{formatCurrency(entry.balance, statement.currency.symbol, false)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                         {filteredEntries.length === 0 && <p className="text-center text-gray-500 py-8">{t('accountStatement.noEntries')}</p>}
-                    </div>
-                     
-                    {/* Footer */}
-                     <div className="mt-10 pt-8 border-t text-sm text-gray-600">
-                        {settings.defaultNotes && (
-                            <div className="mb-8">
-                                <h3 className="font-semibold text-gray-800 mb-1">{t('common.notes')}:</h3>
-                                <p className="whitespace-pre-wrap">{t(settings.defaultNotes as TranslationKey)}</p>
+                        <div data-pdf-section="footer">
+                            <div className="mt-10 pt-8 border-t text-sm text-gray-600">
+                                {settings.defaultNotes && (
+                                    <div className="mb-8">
+                                        <h3 className="font-semibold text-gray-800 mb-1">{t('common.notes')}:</h3>
+                                        <p className="whitespace-pre-wrap">{t(settings.defaultNotes as TranslationKey)}</p>
+                                    </div>
+                                )}
+                                {settings.footerImage && (
+                                    <div className="pt-8">
+                                        <img src={getImageUrl(settings.footerImage) || ''} alt="Footer" className="w-full h-auto object-contain" />
+                                    </div>
+                                )}
                             </div>
-                        )}
-                        {settings.footerImage && (
-                            <div className="pt-8">
-                                <img src={settings.footerImage} alt="Footer" className="w-full h-auto object-contain" />
-                            </div>
-                        )}
+                        </div>
                     </div>
                  </div>
             </main>

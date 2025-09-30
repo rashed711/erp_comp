@@ -20,6 +20,7 @@ const KpiCard: React.FC<{ kpi: Kpi }> = ({ kpi }) => {
         <div className="bg-white p-6 rounded-lg shadow-md flex flex-col justify-between h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
             <div className="flex items-start justify-between">
                 <div className="flex flex-col">
+                    {/* FIX: Cast the kpi.title to TranslationKey for type safety with the t function. */}
                     <p className="text-gray-500 text-sm font-medium">{t(kpi.title as TranslationKey)}</p>
                     <p className="text-3xl font-bold text-gray-800 mt-2">{kpi.value}</p>
                 </div>

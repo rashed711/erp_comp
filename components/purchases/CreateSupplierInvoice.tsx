@@ -101,7 +101,7 @@ const CreateSupplierInvoice: React.FC<CreateSupplierInvoiceProps> = ({ onBack })
 
                 if (fetchErrors.length > 0) {
                      const detailedError = (
-                        <div className="text-right space-y-3">
+                        <div>
                             <p className="font-bold">فشل الاتصال بالخادم لجلب البيانات الأولية.</p>
                             <p className="text-sm">يتم الآن استخدام بيانات تجريبية ولن تتمكن من الحفظ. هذه المشكلة غالبًا بسبب خطأ في ملفات PHP.</p>
                             <div className="space-y-2">

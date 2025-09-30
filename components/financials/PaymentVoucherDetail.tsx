@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { getPaymentVoucherById, getPaymentVoucherSettings } from '../../services/mockApi';
 import { PaymentVoucher, PaymentVoucherSettingsConfig, PaymentVoucherFieldConfig } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
-import { useI18n } from '../../i18n/I18nProvider';
-import { TranslationKey } from '../../i18n/translations';
+import { translations, TranslationKey } from '../../i18n/translations';
+import { API_BASE_URL } from '../../services/api';
 
 interface PaymentVoucherDetailProps {
     voucherId: string;
@@ -13,7 +13,17 @@ interface PaymentVoucherDetailProps {
 }
 
 const PaymentVoucherDetail: React.FC<PaymentVoucherDetailProps> = ({ voucherId, onBack }) => {
-    const { t } = useI18n();
+    // Force English and LTR for PDF generation
+    const t = useCallback((key: TranslationKey, replacements?: { [key: string]: string | number }): string => {
+        let translation = translations[key]?.['en'] || key;
+        if (replacements) {
+            Object.keys(replacements).forEach(placeholder => {
+                translation = translation.replace(`{${placeholder}}`, String(replacements[placeholder]));
+            });
+        }
+        return translation;
+    }, []);
+
     const [voucher, setVoucher] = useState<PaymentVoucher | null>(null);
     const [settings, setSettings] = useState<PaymentVoucherSettingsConfig | null>(null);
     const [loading, setLoading] = useState(true);
@@ -23,16 +33,40 @@ const PaymentVoucherDetail: React.FC<PaymentVoucherDetailProps> = ({ voucherId, 
         fileName: `${t('pdf.fileName.paymentVoucher')}-${voucher?.id}`
     });
 
+    const getImageUrl = (imagePath: string | null) => {
+        if (!imagePath) return null;
+        const isExternalUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://');
+        
+        if (isExternalUrl(imagePath)) {
+            return imagePath;
+        }
+
+        // Sanitize the path: remove leading slashes or "uploads/" prefix
+        // This makes it robust whether the DB stores "header.png" or "uploads/header.png"
+        const sanitizedPath = imagePath.replace(/^uploads\//, '').replace(/^\//, '');
+
+        return `${API_BASE_URL}image_proxy.php?path=${encodeURIComponent(sanitizedPath)}`;
+    };
+
     useEffect(() => {
         const fetchVoucherData = () => {
             const voucherData = getPaymentVoucherById(voucherId);
             const settingsData = getPaymentVoucherSettings();
-            if (voucherData) setVoucher(voucherData);
+            if (voucherData) {
+                const translatedVoucher = {
+                    ...voucherData,
+                    currency: {
+                        ...voucherData.currency,
+                        symbol: t(voucherData.currency.symbol as TranslationKey)
+                    }
+                };
+                setVoucher(translatedVoucher);
+            }
             if (settingsData) setSettings(settingsData);
             setLoading(false);
         };
         fetchVoucherData();
-    }, [voucherId]);
+    }, [voucherId, t]);
 
      const findField = (key: PaymentVoucherFieldConfig['key']): PaymentVoucherFieldConfig | undefined => {
         return settings?.fields.find(f => f.key === key && f.isEnabled);
@@ -44,7 +78,7 @@ const PaymentVoucherDetail: React.FC<PaymentVoucherDetailProps> = ({ voucherId, 
         return (
             <div className="flex justify-between items-start border-b pb-3">
                 <p className="font-semibold text-gray-600">{t(field.label as TranslationKey)}:</p>
-                <div className="text-gray-800 font-medium text-left max-w-xs">{value}</div>
+                <div className="text-gray-800 font-medium max-w-xs" style={{textAlign: 'left'}}>{value}</div>
             </div>
         );
     };
@@ -63,7 +97,7 @@ const PaymentVoucherDetail: React.FC<PaymentVoucherDetailProps> = ({ voucherId, 
                 <div className="container mx-auto flex justify-between items-center">
                     <div className="flex items-center gap-4">
                         <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                            <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" style={{transform: 'scaleX(-1)'}}/>
+                            <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" />
                         </button>
                         <div>
                              <h1 className="text-lg sm:text-xl font-bold text-emerald-600">{t('paymentVouchers.detail.title', { id: voucher.id })}</h1>
@@ -87,39 +121,43 @@ const PaymentVoucherDetail: React.FC<PaymentVoucherDetailProps> = ({ voucherId, 
             </header>
 
             <main className="p-4 sm:p-6 md:p-8">
-                 <div id="printable-voucher" className="max-w-4xl mx-auto bg-white p-8 sm:p-10 md:p-12 rounded-lg shadow-lg">
-                    {/* Dynamic Header Image */}
-                    {settings.headerImage && (
-                        <div className="mb-8">
-                            <img src={settings.headerImage} alt="Header" className="w-full h-auto object-contain" />
+                 <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg">
+                    <div id="printable-voucher" className="p-8 sm:p-10 md:p-12" dir="ltr">
+                        <div data-pdf-section="header">
+                            {settings.headerImage && (
+                                <div className="mb-8">
+                                    <img src={getImageUrl(settings.headerImage) || ''} alt="Header" className="w-full h-auto object-contain" />
+                                </div>
+                            )}
                         </div>
-                    )}
-                    
-                    <div className="flex justify-between items-center mb-10">
-                         <h1 className="text-3xl font-bold text-emerald-600">{t('sidebar.paymentVouchers')}</h1>
-                         <div className="text-left">
-                             {renderDetailRow('voucherNumber', <span className="font-mono">{voucher.id}</span>)}
-                             <div className="mt-4"></div>
-                             {renderDetailRow('date', voucher.date)}
-                         </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        {renderDetailRow('supplierInfo', voucher.supplier.name)}
-                        {renderDetailRow('amount', <span className="font-bold text-emerald-600">{formatCurrency(voucher.total, voucher.currency.symbol)}</span>)}
-                        {renderDetailRow('paymentMethod', voucher.paymentMethod)}
-                        {renderDetailRow('notes', voucher.notes || t(settings.defaultNotes as TranslationKey))}
-                    </div>
-
-                    {/* Footer */}
-                    <div className="mt-16 pt-8 border-t text-sm text-gray-600">
-                        {settings.footerImage && (
-                            <div className="pt-8">
-                                <img src={settings.footerImage} alt="Footer" className="w-full h-auto object-contain" />
+                        <div data-pdf-section="content">
+                            <div className="flex justify-between items-center mb-10">
+                                <h1 className="text-3xl font-bold text-emerald-600">{t('sidebar.paymentVouchers')}</h1>
+                                <div className="text-left">
+                                    {renderDetailRow('voucherNumber', <span className="font-mono">{voucher.id}</span>)}
+                                    <div className="mt-4"></div>
+                                    {renderDetailRow('date', voucher.date)}
+                                </div>
                             </div>
-                        )}
-                    </div>
 
+                            <div className="space-y-6">
+                                {renderDetailRow('supplierInfo', voucher.supplier.name)}
+                                {renderDetailRow('amount', <span className="font-bold text-emerald-600">{formatCurrency(voucher.total, voucher.currency.symbol)}</span>)}
+                                {renderDetailRow('paymentMethod', voucher.paymentMethod)}
+                                {renderDetailRow('notes', <p className="whitespace-pre-wrap">{voucher.notes || t(settings.defaultNotes as TranslationKey)}</p>)}
+                            </div>
+                        </div>
+
+                        <div data-pdf-section="footer">
+                            <div className="mt-16 pt-8 border-t text-sm text-gray-600">
+                                {settings.footerImage && (
+                                    <div className="pt-8">
+                                        <img src={getImageUrl(settings.footerImage) || ''} alt="Footer" className="w-full h-auto object-contain" />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                  </div>
             </main>
         </div>

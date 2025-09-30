@@ -115,7 +115,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentPage, isSidebarOpe
     setSettings(getCompanySettings());
   }, []);
   
-  const navItems = getNavItems(t);
+  const navItems = getNavItems(t as (key: TranslationKey) => string);
   
   const positionClass = direction === 'rtl' ? 'right-0' : 'left-0';
   let transformClass = '';

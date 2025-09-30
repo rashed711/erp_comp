@@ -14,6 +14,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const currencySettings = getCurrencySettings();
     const defaultCurrency = currencySettings.currencies.find(c => c.code === currencySettings.defaultCurrency);
+    // FIX: Cast the 't' function to use TranslationKey for type safety
     const symbol = defaultCurrency ? t(defaultCurrency.symbol as TranslationKey) : t('currency.egpSymbol');
     
     setKpis(getDashboardKpis(symbol));

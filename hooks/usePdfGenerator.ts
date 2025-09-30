@@ -13,139 +13,153 @@ interface PdfGeneratorOptions {
     fileName: string;
 }
 
-/**
- * Converts an image URL to a base64 data URL.
- * This is crucial for embedding images into the PDF to avoid CORS issues.
- * @param url The URL of the image to convert.
- * @returns A promise that resolves with the data URL.
- */
-const imageToDataURL = (url: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        // This is key for fetching cross-origin images. The server must have CORS enabled for this to work.
-        img.crossOrigin = 'Anonymous';
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0);
-            try {
-                // Using JPEG can result in smaller file sizes than PNG for photos.
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                resolve(dataUrl);
-            } catch (e) {
-                reject(new Error('Canvas toDataURL failed, possibly due to a tainted canvas from a CORS error.'));
-            }
-        };
-        img.onerror = (err) => {
-            reject(err);
-        };
-        // Add a cache-busting query parameter to ensure a fresh fetch, which might have correct CORS headers.
-        img.src = `${url}${url.includes('?') ? '&' : '?'}v=${new Date().getTime()}`;
-    });
-};
-
-/**
- * Finds all images within a container, converts them to data URLs,
- * and temporarily replaces their src.
- * @param container The HTML element to process.
- * @returns A promise that resolves to a "restore" function to revert the src attributes.
- */
-const convertAllImagesToDataUrls = async (container: HTMLElement): Promise<() => void> => {
-    const images = Array.from(container.getElementsByTagName('img'));
-    const originalSrcs: { img: HTMLImageElement; src: string }[] = [];
-
-    for (const img of images) {
-        const originalSrc = img.src;
-        // Only process http/https URLs and avoid already-converted data URLs
-        if (originalSrc && originalSrc.startsWith('http')) {
-            originalSrcs.push({ img, src: originalSrc });
-            try {
-                const dataUrl = await imageToDataURL(originalSrc);
-                img.src = dataUrl;
-            } catch (error) {
-                console.error(`Could not convert image ${originalSrc} to data URL. It may be missing from the PDF. Error:`, error);
-            }
-        }
-    }
-
-    // Return a function to restore the original sources after PDF generation
-    return () => {
-        originalSrcs.forEach(({ img, src }) => {
-            img.src = src;
-        });
-    };
-};
-
-
 export const usePdfGenerator = ({ elementId, fileName }: PdfGeneratorOptions) => {
     const [isProcessing, setIsProcessing] = useState(false);
-    const { t } = useI18n(); 
+    const { t } = useI18n();
 
     const generateAndProcessPdf = async (outputType: 'save' | 'share' | 'blob') => {
         setIsProcessing(true);
         const { jsPDF } = window.jspdf;
         const input = document.getElementById(elementId);
-        
+
         if (!input) {
             console.error(`Element with ID "${elementId}" not found.`);
             setIsProcessing(false);
             return null;
         }
 
-        const footerElement = input.children[input.children.length - 1] as HTMLElement;
-        const originalStyles = {
-            parent: {
-                height: input.style.height,
-                display: input.style.display,
-                flexDirection: input.style.flexDirection,
-                width: input.style.width,
-                maxWidth: input.style.maxWidth,
-                margin: input.style.margin,
-            },
-            footer: { marginTop: footerElement?.style.marginTop }
-        };
+        const A4_WIDTH_MM = 210;
+        const A4_HEIGHT_MM = 297;
+        const MARGIN_MM = 10;
+        const CONTENT_WIDTH_MM = A4_WIDTH_MM - MARGIN_MM * 2;
         
-        let restoreImageSrcs = () => {};
+        // By forcing a fixed, wide render width (e.g., 1200px), we ensure that the layout is consistent 
+        // across all devices (mobile or desktop). It forces Tailwind's desktop styles (`lg:`, etc.)
+        // to apply, creating a predictable and uniform PDF output.
+        const RENDER_WIDTH_PX = 1200;
+        
+        const headerEl = input.querySelector('[data-pdf-section="header"]') as HTMLElement | null;
+        const contentEl = input.querySelector('[data-pdf-section="content"]') as HTMLElement | null;
+        const footerEl = input.querySelector('[data-pdf-section="footer"]') as HTMLElement | null;
 
-        try {
-            // New Step: Convert all images to data URLs before rendering
-            restoreImageSrcs = await convertAllImagesToDataUrls(input);
+        if (!contentEl) {
+            console.error('A `[data-pdf-section="content"]` element is required.');
+            setIsProcessing(false);
+            return null;
+        }
+
+        const cloneAndCanvas = async (element: HTMLElement | null): Promise<{ canvas: HTMLCanvasElement; mmHeight: number } | null> => {
+            if (!element) return null;
             
-            const a4Ratio = 297 / 210;
-            const canvasWidth = 1200; 
-            const canvasHeight = canvasWidth * a4Ratio;
+            // Create a temporary LTR container to ensure html2canvas renders in LTR mode
+            const renderContainer = document.createElement('div');
+            renderContainer.style.position = 'absolute';
+            renderContainer.style.left = '-9999px';
+            renderContainer.style.direction = 'ltr'; // Force LTR context
 
-            input.style.height = `${canvasHeight}px`;
-            input.style.display = 'flex';
-            input.style.flexDirection = 'column';
-            input.style.width = `${canvasWidth}px`;
-            input.style.maxWidth = 'none';
-            input.style.margin = '0';
-            if (footerElement) footerElement.style.marginTop = 'auto';
-
-            const canvas = await window.html2canvas(input, {
-                scale: 2,
-                useCORS: true, // Still good practice to keep this
-                width: canvasWidth,
-                height: canvasHeight,
-                windowWidth: canvasWidth,
-                windowHeight: canvasHeight,
+            const clone = element.cloneNode(true) as HTMLElement;
+            clone.style.width = `${RENDER_WIDTH_PX}px`; // Apply fixed width to the clone
+            clone.style.margin = '0';
+            clone.style.padding = '0';
+            
+            renderContainer.appendChild(clone);
+            document.body.appendChild(renderContainer);
+            
+            const canvas = await window.html2canvas(clone, {
+                scale: 2.5, // Use a high scale for better resolution
+                useCORS: true,
+                width: RENDER_WIDTH_PX, // Explicitly tell html2canvas the width to render at
             });
 
-            const imgData = canvas.toDataURL('image/jpeg', 0.9);
-            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
+            document.body.removeChild(renderContainer);
 
-            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'MEDIUM');
+            // Calculate height proportionally to maintain aspect ratio and prevent stretching.
+            const aspectRatio = canvas.height / canvas.width;
+            const mmHeight = CONTENT_WIDTH_MM * aspectRatio;
+            
+            return { canvas, mmHeight };
+        };
+
+        try {
+            const headerData = await cloneAndCanvas(headerEl);
+            const contentData = await cloneAndCanvas(contentEl);
+            const footerData = await cloneAndCanvas(footerEl);
+            
+            if (!contentData) throw new Error("Content data could not be generated.");
+
+            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+            
+            const headerHeightMm = headerData?.mmHeight ?? 0;
+            const footerHeightMm = footerData?.mmHeight ?? 0;
+            const pageNumberAreaHeightMm = 10; // Reserve space for "Page X of Y" on non-last pages
+
+            const contentSpaceOnRegularPageMm = A4_HEIGHT_MM - MARGIN_MM * 2 - headerHeightMm - pageNumberAreaHeightMm;
+            const contentSpaceOnLastPageMm = A4_HEIGHT_MM - MARGIN_MM * 2 - headerHeightMm - footerHeightMm;
+            
+            let totalPages = 1;
+            if (contentData.mmHeight > contentSpaceOnLastPageMm) {
+                const overflowContentMm = contentData.mmHeight - contentSpaceOnLastPageMm;
+                totalPages += Math.ceil(overflowContentMm / contentSpaceOnRegularPageMm);
+            }
+
+            let contentYPosPx = 0;
+            const contentPxToMmRatio = contentData.mmHeight / contentData.canvas.height;
+
+            for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+                if (pageNum > 1) {
+                    pdf.addPage();
+                }
+
+                let currentYPosMm = MARGIN_MM;
+                const isLastPage = pageNum === totalPages;
+
+                // 1. Add Header
+                if (headerData) {
+                    pdf.addImage(headerData.canvas, 'PNG', MARGIN_MM, currentYPosMm, CONTENT_WIDTH_MM, headerHeightMm);
+                    currentYPosMm += headerHeightMm;
+                }
+
+                // 2. Add Content Slice
+                let contentSliceHeightPx;
+                let contentSliceHeightMm;
+
+                if (isLastPage) {
+                    contentSliceHeightPx = contentData.canvas.height - contentYPosPx;
+                    contentSliceHeightMm = contentSliceHeightPx * contentPxToMmRatio;
+                } else {
+                    contentSliceHeightMm = contentSpaceOnRegularPageMm;
+                    contentSliceHeightPx = contentSliceHeightMm / contentPxToMmRatio;
+                }
+                
+                if (contentSliceHeightPx > 0) {
+                    const sliceCanvas = document.createElement('canvas');
+                    sliceCanvas.width = contentData.canvas.width;
+                    sliceCanvas.height = Math.ceil(contentSliceHeightPx);
+                    const sliceCtx = sliceCanvas.getContext('2d');
+                    sliceCtx?.drawImage(contentData.canvas, 0, contentYPosPx, contentData.canvas.width, contentSliceHeightPx, 0, 0, contentData.canvas.width, contentSliceHeightPx);
+                    
+                    pdf.addImage(sliceCanvas, 'PNG', MARGIN_MM, currentYPosMm, CONTENT_WIDTH_MM, contentSliceHeightMm);
+                    contentYPosPx += contentSliceHeightPx;
+                }
+                
+                // 3. Add Footer (only on the last page)
+                if (isLastPage && footerData) {
+                    const footerYPosMm = A4_HEIGHT_MM - MARGIN_MM - footerHeightMm;
+                    pdf.addImage(footerData.canvas, 'PNG', MARGIN_MM, footerYPosMm, CONTENT_WIDTH_MM, footerHeightMm);
+                }
+
+                // 4. Add Page Number on every page
+                pdf.setFontSize(8);
+                pdf.setTextColor(150);
+                const pageNumText = `Page ${pageNum} of ${totalPages}`;
+                const textWidth = pdf.getStringUnitWidth(pageNumText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor;
+                const textX = (A4_WIDTH_MM - textWidth) / 2;
+                pdf.text(pageNumText, textX, A4_HEIGHT_MM - (MARGIN_MM / 2));
+            }
             
             if (outputType === 'save') {
                 pdf.save(`${fileName}.pdf`);
-                return null;
-            }
-            if (outputType === 'blob') {
+            } else if (outputType === 'blob') {
                 return pdf.output('blob');
             }
             return null;
@@ -155,15 +169,6 @@ export const usePdfGenerator = ({ elementId, fileName }: PdfGeneratorOptions) =>
             alert(t('pdf.error'));
             return null;
         } finally {
-            // Restore everything
-            restoreImageSrcs();
-            input.style.height = originalStyles.parent.height;
-            input.style.display = originalStyles.parent.display;
-            input.style.flexDirection = originalStyles.parent.flexDirection;
-            input.style.width = originalStyles.parent.width;
-            input.style.maxWidth = originalStyles.parent.maxWidth;
-            input.style.margin = originalStyles.parent.margin;
-            if (footerElement) footerElement.style.marginTop = originalStyles.footer.marginTop;
             setIsProcessing(false);
         }
     };

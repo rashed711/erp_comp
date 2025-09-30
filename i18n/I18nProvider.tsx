@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+// FIX: Correctly import TranslationKey from './translations'
 import { translations, TranslationKey } from './translations';
 
 type Language = 'ar' | 'en';

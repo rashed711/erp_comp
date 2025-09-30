@@ -13,6 +13,7 @@ const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
 
   const translatedData = data.map(item => ({
     ...item,
+    // FIX: Cast item.month to TranslationKey for type-safe translation.
     month: t(item.month as TranslationKey)
   }));
 

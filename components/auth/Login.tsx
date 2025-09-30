@@ -35,6 +35,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
             <div className="max-w-md w-full mx-auto">
+                {/* FIX: Cast systemName to TranslationKey for type-safe translation. */}
                 <h1 className="text-4xl font-bold text-center text-emerald-600 mb-8">{t(companySettings.systemName as TranslationKey)}</h1>
                 <div className="bg-white p-8 rounded-2xl shadow-lg">
                     <h2 className="text-2xl font-bold text-gray-800 text-center mb-1">{t('login.welcome')}</h2>
