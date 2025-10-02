@@ -12,7 +12,7 @@
  * 
  * Example: If your project is in `xampp/htdocs/my-erp`, the URL would be `http://localhost/my-erp/api/`
  */
-export const API_BASE_URL = 'http://localhost/erp/api/';
+// export const API_BASE_URL = 'http://localhost/erp/api/';
 
 /**
  * --- Setup for Production Deployment ---
@@ -21,4 +21,4 @@ export const API_BASE_URL = 'http://localhost/erp/api/';
  * This assumes the `api` directory will be at the same level as the frontend files.
  * Uncomment the following line and ensure the local development URL is commented out.
  */
-// export const API_BASE_URL = '/api/';
+export const API_BASE_URL = 'https://r.mostafarashed.com/api/';

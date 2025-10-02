@@ -58,7 +58,9 @@ const SupplierInvoices: React.FC<SupplierInvoicesProps> = ({ onNavigate }) => {
                     supplier: { name: inv.supplier_name } as ContactInfo,
                     total: parseFloat(inv.total),
                     items: [],
-                    subtotal: 0, tax: {rate: 0, amount: 0}, discount: {type: 'fixed', value: 0, amount: 0},
+                    subtotal: parseFloat(inv.subtotal || 0),
+                    tax: { rate: parseFloat(inv.tax_rate || 0), amount: parseFloat(inv.tax_amount || 0) },
+                    discount: { type: inv.discount_type || 'fixed', value: parseFloat(inv.discount_value || 0), amount: parseFloat(inv.discount_amount || 0) },
                     currency: { code: inv.currency_code || 'SAR', symbol: inv.currency_symbol || 'ر.س' },
                 }));
                 setInvoices(formattedData);

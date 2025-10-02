@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { getCompanySettings } from '../../services/mockApi';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CompanySettingsConfig } from '../../types';
 import { useI18n } from '../../i18n/I18nProvider';
+import { API_BASE_URL } from '../../services/api';
 import { TranslationKey } from '../../i18n/translations';
 
-const SettingsInput: React.FC<{ label: string, id: keyof CompanySettingsConfig, value: string, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }> = ({ label, id, value, onChange }) => (
+const SettingsInput: React.FC<{ label: string, id: keyof CompanySettingsConfig, value: string, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, disabled?: boolean }> = ({ label, id, value, onChange, disabled }) => (
     <div>
         <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
         <input
@@ -13,30 +13,147 @@ const SettingsInput: React.FC<{ label: string, id: keyof CompanySettingsConfig, 
             name={id}
             value={value}
             onChange={onChange}
-            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500"
+            disabled={disabled}
+            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100"
         />
     </div>
 );
 
+const initialSettings: CompanySettingsConfig = { systemName: '', companyName: '', address: '', phone: '', email: '', website: '' };
+
 const CompanySettings: React.FC = () => {
     const { t } = useI18n();
-    const [settings, setSettings] = useState<CompanySettingsConfig | null>(null);
+    // This state holds the raw data from the API (with potential translation keys)
+    const [rawData, setRawData] = useState<CompanySettingsConfig | null>(null);
+    // This state holds the data for the form fields, which might be translated for display
+    const [formData, setFormData] = useState<CompanySettingsConfig>(initialSettings);
+    
     const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+    const fetchSettings = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const response = await fetch(`${API_BASE_URL}settings.php?scope=company`, { cache: 'no-cache' });
+            if (!response.ok) {
+                const responseText = await response.text();
+                throw new Error(`${t('settings.company.fetchError')} - Server response: ${responseText}`);
+            }
+            const data = await response.json();
+            
+            if (data && Object.keys(data).length > 0 && !data.error) {
+                setRawData(data); // Store raw data
+                // Create a separate object for the form, translating only if necessary
+                const displayData = {
+                    // FIX: Removed incorrect second argument from t() calls.
+                    systemName: t(data.systemName as TranslationKey),
+                    companyName: t(data.companyName as TranslationKey),
+                    address: t(data.address as TranslationKey),
+                    phone: data.phone || '',
+                    email: data.email || '',
+                    website: data.website || '',
+                };
+                setFormData(displayData);
+            } else {
+                setRawData(initialSettings);
+                setFormData(initialSettings);
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            setError(errorMessage);
+            setRawData(initialSettings);
+            setFormData(initialSettings); // On error, show empty fields
+        } finally {
+            setIsLoading(false);
+        }
+    }, [t]);
 
     useEffect(() => {
-        setSettings(getCompanySettings());
-        setIsLoading(false);
-    }, []);
+        fetchSettings();
+    }, [fetchSettings]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setSettings(prev => prev ? { ...prev, [name]: value } : null);
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        setIsSaving(true);
+        setError(null);
+        setSuccessMessage(null);
+
+        // Construct the payload. We need to check if the form data has changed from the translated value.
+        // If it hasn't, we send the original key from rawData. Otherwise, we send the new value.
+        // This prevents saving translated strings back to the DB.
+        const payload: Partial<CompanySettingsConfig> = {};
+        (Object.keys(formData) as Array<keyof CompanySettingsConfig>).forEach(key => {
+            // FIX: Removed incorrect second argument from t() call.
+            const originalValue = rawData ? t(rawData[key] as TranslationKey) : '';
+            if (formData[key] !== originalValue) {
+                payload[key] = formData[key];
+            } else if (rawData && rawData[key]) {
+                 // If value is unchanged, send the original key/value from the server
+                payload[key] = rawData[key];
+            } else {
+                // If it was empty and is still empty, send the empty string
+                payload[key] = '';
+            }
+        });
+
+
+        const body = new URLSearchParams();
+        Object.entries(payload).forEach(([key, value]) => {
+            body.append(key, value);
+        });
+
+        try {
+            const response = await fetch(`${API_BASE_URL}settings.php?scope=company`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: body.toString(),
+            });
+            
+            const responseText = await response.text();
+            let result;
+            try {
+                 result = responseText ? JSON.parse(responseText) : { success: true };
+            } catch (jsonError) {
+                 throw new Error(`${t('settings.company.saveInvalidResponse')}: ${responseText}`);
+            }
+            
+            if (!response.ok || result.error) {
+                throw new Error(result.error || `${t('settings.company.saveError')} - Server response: ${responseText}`);
+            }
+            
+            setSuccessMessage(t('settings.company.saveSuccess'));
+            await fetchSettings(); // Refetch data from server to confirm save and update state
+            setTimeout(() => setSuccessMessage(null), 4000);
+
+        } catch (err) {
+            setError(err instanceof Error ? err.message : String(err));
+            setTimeout(() => setError(null), 6000);
+        } finally {
+            setIsSaving(false);
+        }
     };
     
-    if (isLoading || !settings) {
+    if (isLoading) {
         return (
             <div className="bg-white p-6 rounded-lg shadow-md w-full text-center">
-                <p>{t('common.loading')}</p>
+                <div className="flex justify-center items-center">
+                    <svg className="animate-spin h-5 w-5 text-emerald-500 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>{t('common.loading')}</span>
+                </div>
             </div>
         );
     }
@@ -47,20 +164,25 @@ const CompanySettings: React.FC = () => {
                 <h2 className="text-xl font-bold text-gray-800">{t('settings.company.title')}</h2>
                 <p className="text-sm text-gray-500 mt-1">{t('settings.company.description')}</p>
             </div>
-            <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+
+            {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert"><p>{error}</p></div>}
+            {successMessage && <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert"><p>{successMessage}</p></div>}
+            
+            <form className="space-y-6" onSubmit={handleSave}>
                 <div className="border border-gray-200 rounded-lg p-6 bg-white shadow-sm">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <SettingsInput label={t('settings.company.systemName')} id="systemName" value={t(settings.systemName as TranslationKey)} onChange={handleChange} />
-                        <SettingsInput label={t('settings.company.companyName')} id="companyName" value={t(settings.companyName as TranslationKey)} onChange={handleChange} />
-                        <SettingsInput label={t('settings.company.address')} id="address" value={t(settings.address as TranslationKey)} onChange={handleChange} />
-                        <SettingsInput label={t('settings.company.phone')} id="phone" value={settings.phone} onChange={handleChange} />
-                        <SettingsInput label={t('settings.company.email')} id="email" value={settings.email} onChange={handleChange} />
-                        <SettingsInput label={t('settings.company.website')} id="website" value={settings.website} onChange={handleChange} />
+                        <SettingsInput label={t('settings.company.systemName')} id="systemName" value={formData.systemName} onChange={handleChange} disabled={isSaving} />
+                        <SettingsInput label={t('settings.company.companyName')} id="companyName" value={formData.companyName} onChange={handleChange} disabled={isSaving} />
+                        <SettingsInput label={t('settings.company.address')} id="address" value={formData.address} onChange={handleChange} disabled={isSaving} />
+                        <SettingsInput label={t('settings.company.phone')} id="phone" value={formData.phone} onChange={handleChange} disabled={isSaving} />
+                        <SettingsInput label={t('settings.company.email')} id="email" value={formData.email} onChange={handleChange} disabled={isSaving} />
+                        <SettingsInput label={t('settings.company.website')} id="website" value={formData.website} onChange={handleChange} disabled={isSaving} />
                     </div>
                 </div>
                 <div className="pt-4 flex justify-end">
-                    <button type="submit" className="bg-emerald-600 text-white py-2 px-6 rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-px">
-                        {t('common.saveChanges')}
+                    <button type="submit" disabled={isSaving || isLoading} className="bg-emerald-600 text-white py-2 px-6 rounded-lg hover:bg-emerald-700 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-px disabled:bg-emerald-300 flex items-center">
+                         {isSaving && <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                        {isSaving ? t('common.saving') : t('common.saveChanges')}
                     </button>
                 </div>
             </form>
