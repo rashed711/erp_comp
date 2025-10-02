@@ -1,42 +1,68 @@
 import React, { useState } from 'react';
-import { getCompanySettings } from '../../services/mockApi';
 import { useI18n } from '../../i18n/I18nProvider';
 import { TranslationKey } from '../../i18n/translations';
+import { User } from '../../types';
+import { API_BASE_URL } from '../../services/api';
 
 interface LoginProps {
-    onLoginSuccess: () => void;
+    onLoginSuccess: (user: User) => void;
+    systemName: string;
 }
 
-const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+const Login: React.FC<LoginProps> = ({ onLoginSuccess, systemName }) => {
     const { t } = useI18n();
-    const [email, setEmail] = useState('admin@example.com');
-    const [password, setPassword] = useState('password');
+    const [email, setEmail] = useState('rashed1711@gmail.com');
+    const [password, setPassword] = useState('123456');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    
-    const companySettings = getCompanySettings();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
 
-        // Simulate API call
-        setTimeout(() => {
-            if (email === 'admin@example.com' && password === 'password') {
-                onLoginSuccess();
-            } else {
-                setError(t('login.error'));
+        try {
+            const formData = new URLSearchParams();
+            formData.append('email', email);
+            formData.append('password', password);
+            formData.append('action', 'login');
+
+            const response = await fetch(`${API_BASE_URL}users.php`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData.toString(),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                // Handle server-side validation errors (401, 400) or other issues
+                throw new Error(result.error || t('login.error'));
             }
+
+            // A successful login should return the user object (with an 'id').
+            if (result && result.id) {
+                onLoginSuccess(result); // Pass the user object received from the server
+            } else {
+                 // This case might happen if the server returns 200 OK but an empty body or an error structure we don't expect.
+                setError(result.error || t('login.error'));
+            }
+        } catch (err) {
+            console.error("Login failed:", err);
+            const errorMessage = (err instanceof Error) ? err.message : t('login.error');
+            // This will catch network errors, JSON parsing errors, or errors thrown from the response check.
+            setError(errorMessage);
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
             <div className="max-w-md w-full mx-auto">
-                {/* FIX: Cast systemName to TranslationKey for type-safe translation. */}
-                <h1 className="text-4xl font-bold text-center text-emerald-600 mb-8">{t(companySettings.systemName as TranslationKey)}</h1>
+                <h1 className="text-4xl font-bold text-center text-emerald-600 mb-8">{t(systemName as TranslationKey)}</h1>
                 <div className="bg-white p-8 rounded-2xl shadow-lg">
                     <h2 className="text-2xl font-bold text-gray-800 text-center mb-1">{t('login.welcome')}</h2>
                     <p className="text-center text-gray-500 mb-8">{t('login.instructions')}</p>

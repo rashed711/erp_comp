@@ -14,10 +14,13 @@ import ProductManagement from './ProductManagement';
 import CurrencySettings from './CurrencySettings';
 import { useI18n } from '../../i18n/I18nProvider';
 
-
 type SettingsTab = 'users' | 'roles' | 'company' | 'products' | 'currencies' | 'quotations' | 'salesInvoices' | 'purchaseInvoices' | 'receipts' | 'payments' | 'customerStatements' | 'supplierStatements';
 
-const SettingsPage: React.FC = () => {
+interface SettingsPageProps {
+  onSettingsUpdate: () => void;
+}
+
+const SettingsPage: React.FC<SettingsPageProps> = ({ onSettingsUpdate }) => {
     const { t, direction } = useI18n();
     const [activeTab, setActiveTab] = useState<SettingsTab>('users');
 
@@ -28,7 +31,7 @@ const SettingsPage: React.FC = () => {
             case 'roles':
                 return <RoleManagement />;
             case 'company':
-                return <CompanySettings />;
+                return <CompanySettings onUpdate={onSettingsUpdate} />;
             case 'currencies':
                 return <CurrencySettings />;
             case 'products':

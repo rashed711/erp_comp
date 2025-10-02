@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import Dashboard from './components/dashboard/Dashboard';
@@ -26,6 +26,9 @@ import ServerTest from './components/shared/ServerTest';
 import CreateReceipt from './components/financials/CreateReceipt';
 import CreatePaymentVoucher from './components/financials/CreatePaymentVoucher';
 import { useI18n } from './i18n/I18nProvider';
+import { User, CompanySettingsConfig } from './types';
+import { API_BASE_URL } from './services/api';
+import { TranslationKey } from './i18n/translations';
 
 type Route = {
   page: string;
@@ -42,26 +45,65 @@ const PlaceholderPage: React.FC<{title: string}> = ({title}) => {
     );
 };
 
+const getStoredUser = (): User | null => {
+    const storedUser = sessionStorage.getItem('currentUser');
+    if (storedUser) {
+        try {
+            return JSON.parse(storedUser);
+        } catch (e) {
+            console.error("Failed to parse user from session storage", e);
+            sessionStorage.removeItem('currentUser');
+            return null;
+        }
+    }
+    return null;
+};
+
 
 const App: React.FC = () => {
   const { direction, t } = useI18n();
-  const [isAuthenticated, setIsAuthenticated] = useState(() => sessionStorage.getItem('isLoggedIn') === 'true');
+  const [currentUser, setCurrentUser] = useState<User | null>(getStoredUser);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!currentUser);
   const [route, setRoute] = useState<Route>({ page: 'dashboard' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [companySettings, setCompanySettings] = useState<CompanySettingsConfig | null>(null);
+
+  const fetchCompanySettings = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}company_settings.php`);
+      if (response.ok) {
+        const data = await response.json();
+        setCompanySettings(data);
+      } else {
+        console.error("Failed to fetch company settings, using fallback.");
+        setCompanySettings({ systemName: 'common.systemTitle', companyName: '', address: '', phone: '', email: '', website: '' });
+      }
+    } catch (error) {
+      console.error("Error fetching company settings:", error);
+      setCompanySettings({ systemName: 'common.systemTitle', companyName: '', address: '', phone: '', email: '', website: '' });
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCompanySettings();
+  }, [fetchCompanySettings]);
   
   useEffect(() => {
-    document.title = t('common.systemTitle');
-  }, [t]);
+    const systemName = companySettings?.systemName ? t(companySettings.systemName as TranslationKey) : t('common.systemTitle');
+    document.title = systemName;
+  }, [t, companySettings]);
 
-  const handleLoginSuccess = () => {
-    sessionStorage.setItem('isLoggedIn', 'true');
+  const handleLoginSuccess = (user: User) => {
+    sessionStorage.setItem('currentUser', JSON.stringify(user));
+    setCurrentUser(user);
     setIsAuthenticated(true);
     setRoute({ page: 'dashboard' });
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('isLoggedIn');
+    sessionStorage.removeItem('currentUser');
     setIsAuthenticated(false);
+    setCurrentUser(null); // Clear user on logout
   };
 
   const handleToggleSidebar = () => {
@@ -129,11 +171,11 @@ const App: React.FC = () => {
       case 'reports':
         return <PlaceholderPage title={t('sidebar.reports')} />;
       case 'settings':
-        return <SettingsPage />;
+        return <SettingsPage onSettingsUpdate={fetchCompanySettings} />;
       case 'serverTest':
         return <ServerTest onBack={() => handleNavigate('dashboard')} />;
       case 'profile':
-        return <ProfilePage onLogout={handleLogout} />;
+        return currentUser ? <ProfilePage user={currentUser} onLogout={handleLogout} /> : null;
       case 'dashboard':
       default:
         return <Dashboard />;
@@ -159,15 +201,17 @@ const App: React.FC = () => {
     'serverTest'
   ].includes(route.page);
 
+  const systemName = companySettings?.systemName ? companySettings.systemName : 'common.systemTitle';
+
   if (!isAuthenticated) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+    return <Login onLoginSuccess={handleLoginSuccess} systemName={systemName} />;
   }
   
   const contentMarginClass = direction === 'rtl' ? 'lg:mr-64' : 'lg:ml-64';
 
   return (
     <div className="bg-gray-100 min-h-screen">
-      <Sidebar onNavigate={handleNavigate} currentPage={route.page} isSidebarOpen={isSidebarOpen} onToggleSidebar={handleToggleSidebar} />
+      <Sidebar onNavigate={handleNavigate} currentPage={route.page} isSidebarOpen={isSidebarOpen} onToggleSidebar={handleToggleSidebar} systemName={systemName} />
       
       {/* Animated backdrop */}
       <div 

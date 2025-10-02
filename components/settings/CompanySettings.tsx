@@ -4,6 +4,10 @@ import { useI18n } from '../../i18n/I18nProvider';
 import { API_BASE_URL } from '../../services/api';
 import { TranslationKey } from '../../i18n/translations';
 
+interface CompanySettingsProps {
+    onUpdate: () => void;
+}
+
 const SettingsInput: React.FC<{ label: string, id: keyof CompanySettingsConfig, value: string, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, disabled?: boolean }> = ({ label, id, value, onChange, disabled }) => (
     <div>
         <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
@@ -21,11 +25,8 @@ const SettingsInput: React.FC<{ label: string, id: keyof CompanySettingsConfig, 
 
 const initialSettings: CompanySettingsConfig = { systemName: '', companyName: '', address: '', phone: '', email: '', website: '' };
 
-const CompanySettings: React.FC = () => {
+const CompanySettings: React.FC<CompanySettingsProps> = ({ onUpdate }) => {
     const { t } = useI18n();
-    // This state holds the raw data from the API (with potential translation keys)
-    const [rawData, setRawData] = useState<CompanySettingsConfig | null>(null);
-    // This state holds the data for the form fields, which might be translated for display
     const [formData, setFormData] = useState<CompanySettingsConfig>(initialSettings);
     
     const [isLoading, setIsLoading] = useState(true);
@@ -37,7 +38,7 @@ const CompanySettings: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(`${API_BASE_URL}settings.php?scope=company`, { cache: 'no-cache' });
+            const response = await fetch(`${API_BASE_URL}company_settings.php`, { cache: 'no-cache' });
             if (!response.ok) {
                 const responseText = await response.text();
                 throw new Error(`${t('settings.company.fetchError')} - Server response: ${responseText}`);
@@ -45,27 +46,15 @@ const CompanySettings: React.FC = () => {
             const data = await response.json();
             
             if (data && Object.keys(data).length > 0 && !data.error) {
-                setRawData(data); // Store raw data
-                // Create a separate object for the form, translating only if necessary
-                const displayData = {
-                    // FIX: Removed incorrect second argument from t() calls.
-                    systemName: t(data.systemName as TranslationKey),
-                    companyName: t(data.companyName as TranslationKey),
-                    address: t(data.address as TranslationKey),
-                    phone: data.phone || '',
-                    email: data.email || '',
-                    website: data.website || '',
-                };
-                setFormData(displayData);
+                // The form should display the raw data from the DB (which might be translation keys or literal strings)
+                setFormData(data);
             } else {
-                setRawData(initialSettings);
                 setFormData(initialSettings);
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             setError(errorMessage);
-            setRawData(initialSettings);
-            setFormData(initialSettings); // On error, show empty fields
+            setFormData(initialSettings);
         } finally {
             setIsLoading(false);
         }
@@ -87,32 +76,13 @@ const CompanySettings: React.FC = () => {
         setError(null);
         setSuccessMessage(null);
 
-        // Construct the payload. We need to check if the form data has changed from the translated value.
-        // If it hasn't, we send the original key from rawData. Otherwise, we send the new value.
-        // This prevents saving translated strings back to the DB.
-        const payload: Partial<CompanySettingsConfig> = {};
-        (Object.keys(formData) as Array<keyof CompanySettingsConfig>).forEach(key => {
-            // FIX: Removed incorrect second argument from t() call.
-            const originalValue = rawData ? t(rawData[key] as TranslationKey) : '';
-            if (formData[key] !== originalValue) {
-                payload[key] = formData[key];
-            } else if (rawData && rawData[key]) {
-                 // If value is unchanged, send the original key/value from the server
-                payload[key] = rawData[key];
-            } else {
-                // If it was empty and is still empty, send the empty string
-                payload[key] = '';
-            }
-        });
-
-
         const body = new URLSearchParams();
-        Object.entries(payload).forEach(([key, value]) => {
-            body.append(key, value);
+        (Object.keys(formData) as Array<keyof CompanySettingsConfig>).forEach(key => {
+            body.append(key, formData[key as keyof CompanySettingsConfig]);
         });
-
+        
         try {
-            const response = await fetch(`${API_BASE_URL}settings.php?scope=company`, {
+            const response = await fetch(`${API_BASE_URL}company_settings.php`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -133,14 +103,16 @@ const CompanySettings: React.FC = () => {
             }
             
             setSuccessMessage(t('settings.company.saveSuccess'));
-            await fetchSettings(); // Refetch data from server to confirm save and update state
-            setTimeout(() => setSuccessMessage(null), 4000);
+            onUpdate(); // Trigger parent data refresh
+            setTimeout(() => {
+                setSuccessMessage(null);
+                setIsSaving(false);
+            }, 2000);
 
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err));
-            setTimeout(() => setError(null), 6000);
-        } finally {
             setIsSaving(false);
+            setTimeout(() => setError(null), 6000);
         }
     };
     

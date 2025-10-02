@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import * as Icons from '../icons/ModuleIcons';
-import { NavItem, CompanySettingsConfig } from '../../types';
-import { getCompanySettings } from '../../services/mockApi';
+import { NavItem } from '../../types';
 import { useI18n } from '../../i18n/I18nProvider';
 import { TranslationKey } from '../../i18n/translations';
 
@@ -105,15 +104,11 @@ interface SidebarProps {
     currentPage: string;
     isSidebarOpen: boolean;
     onToggleSidebar: () => void;
+    systemName: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentPage, isSidebarOpen, onToggleSidebar }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentPage, isSidebarOpen, onToggleSidebar, systemName }) => {
   const { direction, t } = useI18n();
-  const [settings, setSettings] = useState<CompanySettingsConfig | null>(null);
-
-  useEffect(() => {
-    setSettings(getCompanySettings());
-  }, []);
   
   const navItems = getNavItems(t as (key: TranslationKey) => string);
   
@@ -125,12 +120,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentPage, isSidebarOpe
     transformClass = isSidebarOpen ? 'translate-x-0' : '-translate-x-full';
   }
   
-  const systemName = settings?.systemName ? t(settings.systemName as TranslationKey) : 'ERP System';
+  const displayName = t(systemName as TranslationKey);
 
   return (
     <aside id="sidebar" className={`bg-white w-64 min-h-screen shadow-lg fixed top-0 ${positionClass} transform lg:translate-x-0 transition-transform duration-300 ease-in-out z-40 flex flex-col ${transformClass}`}>
       <div className="p-6 flex items-center justify-between border-b">
-        <h1 className="text-2xl font-bold text-emerald-600">{systemName}</h1>
+        <h1 className="text-2xl font-bold text-emerald-600">{displayName}</h1>
         <button id="close-sidebar-btn" onClick={onToggleSidebar} className="lg:hidden text-gray-500 hover:text-gray-800">
            <Icons.XIcon className="w-6 h-6" />
         </button>
