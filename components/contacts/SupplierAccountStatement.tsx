@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getSupplierAccountStatementSettings, getCompanySettings, getCurrencySettings } from '../../services/mockApi';
+import { getCurrencySettings } from '../../services/mockApi';
 import { AccountStatement, AccountStatementSettingsConfig, AccountStatementFieldConfig, CompanySettingsConfig, AccountStatementEntry } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
@@ -43,49 +43,75 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
             return imagePath;
         }
 
-        // Sanitize the path: remove leading slashes or "uploads/" prefix
-        // This makes it robust whether the DB stores "header.png" or "uploads/header.png"
         const sanitizedPath = imagePath.replace(/^uploads\//, '').replace(/^\//, '');
-
         return `${API_BASE_URL}image_proxy.php?path=${encodeURIComponent(sanitizedPath)}`;
     };
 
     useEffect(() => {
-        const fetchStatement = async () => {
+        const fetchStatementData = async () => {
             setLoading(true);
             setError(null);
-            let responseText = '';
             try {
-                const response = await fetch(`${API_BASE_URL}account_statement.php?supplier_id=${supplierId}`, { 
-                    cache: 'no-cache',
-                    headers: { 'Accept': 'application/json' }
-                });
-                
-                responseText = await response.text();
+                const [statementResponse, settingsResponse, companySettingsResponse] = await Promise.all([
+                    fetch(`${API_BASE_URL}account_statement.php?supplier_id=${supplierId}`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } }),
+                    fetch(`${API_BASE_URL}settings.php?scope=supplierStatement`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } }),
+                    fetch(`${API_BASE_URL}company_settings.php`, { cache: 'no-cache' })
+                ]);
 
-                if (!response.ok) {
-                    if (response.status === 404) {
+                // Handle statement data
+                const statementText = await statementResponse.text();
+                if (!statementResponse.ok) {
+                    if (statementResponse.status === 404) {
                          throw new Error(t('accountStatement.notFound'));
                     }
-                    throw new Error(`HTTP error! status: ${response.status} - ${responseText}`);
+                    throw new Error(`HTTP error! status: ${statementResponse.status} - ${statementText}`);
                 }
-                const data = JSON.parse(responseText);
-                if(data.error) {
+                const data = JSON.parse(statementText);
+                if (data.error) {
                     throw new Error(data.error);
                 }
-                
+
                 const currencySettingsData = getCurrencySettings();
                 const currencyInfo = currencySettingsData.currencies.find(c => c.code === data.currency.code);
                 const translatedSymbol = currencyInfo ? t(currencyInfo.symbol as TranslationKey) : data.currency.symbol;
                 data.currency.symbol = translatedSymbol;
-
                 setStatement(data);
 
-                const settingsData = getSupplierAccountStatementSettings();
-                const companyData = getCompanySettings();
-                setSettings(settingsData)
-                setCompanySettings(companyData)
+                // Handle settings data
+                if (!settingsResponse.ok) {
+                    throw new Error(t('settings.doc.titleSupplierStatements') + ': ' + t('common.error'));
+                }
+                const settingsData = await settingsResponse.json();
+                const defaultFields: AccountStatementFieldConfig[] = [
+                    { key: 'contactInfo', label: 'settings.doc.field.supplierData', isEnabled: true },
+                    { key: 'statementDate', label: 'settings.doc.field.statementDate', isEnabled: true },
+                    { key: 'openingBalance', label: 'settings.doc.field.openingBalance', isEnabled: true },
+                    { key: 'totalDebit', label: 'settings.doc.field.totalDebitSupplier', isEnabled: true },
+                    { key: 'totalCredit', label: 'settings.doc.field.totalCredit', isEnabled: true },
+                    { key: 'closingBalance', label: 'settings.doc.field.closingBalance', isEnabled: true },
+                    { key: 'ourCompanyInfo', label: 'settings.doc.field.companyData', isEnabled: true },
+                ];
+                
+                const finalFields = (settingsData.fields && Array.isArray(settingsData.fields) && settingsData.fields.length > 0) 
+                    ? settingsData.fields 
+                    : defaultFields;
 
+                setSettings({
+                    headerImage: settingsData.headerImage || null,
+                    footerImage: settingsData.footerImage || null,
+                    defaultNotes: settingsData.defaultNotes || '',
+                    fields: finalFields,
+                });
+
+                // Handle company settings
+                if (companySettingsResponse.ok) {
+                    const companyData = await companySettingsResponse.json();
+                    setCompanySettings(companyData);
+                } else {
+                    console.error("Failed to fetch company settings for statement.");
+                    setCompanySettings({ systemName: 'common.systemTitle', companyName: '', address: '', phone: '', email: '', website: '' });
+                }
+    
             } catch (err: any) {
                 let detailedError: React.ReactNode;
                 const errorMessage = err.message || 'An unexpected error occurred.';
@@ -115,7 +141,7 @@ const SupplierAccountStatement: React.FC<SupplierAccountStatementProps> = ({ sup
                 setLoading(false);
             }
         };
-        fetchStatement();
+        fetchStatementData();
     }, [supplierId, t]);
 
      useEffect(() => {

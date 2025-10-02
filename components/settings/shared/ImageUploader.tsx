@@ -18,9 +18,15 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ label, currentImageUrl, o
 
     useEffect(() => {
         if (currentImageUrl) {
-            const siteRoot = API_BASE_URL.replace('/api/', '/');
             const isExternalUrl = (url: string) => url.startsWith('http://') || url.startsWith('https://');
-            const fullUrl = isExternalUrl(currentImageUrl) ? currentImageUrl : `${siteRoot}${currentImageUrl}`;
+        
+            if (isExternalUrl(currentImageUrl)) {
+                setPreview(currentImageUrl);
+                return;
+            }
+    
+            const sanitizedPath = currentImageUrl.replace(/^uploads\//, '').replace(/^\//, '');
+            const fullUrl = `${API_BASE_URL}image_proxy.php?path=${encodeURIComponent(sanitizedPath)}`;
             setPreview(fullUrl);
         } else {
             setPreview(null);

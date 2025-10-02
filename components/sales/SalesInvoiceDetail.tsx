@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { getSalesInvoiceById, getSalesInvoiceSettings } from '../../services/mockApi';
-import { SalesInvoice, SalesInvoiceSettingsConfig } from '../../types';
+import { SalesInvoice, SalesInvoiceSettingsConfig, SalesInvoiceFieldConfig, DocumentItem, ContactInfo } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
 import { useI18n } from '../../i18n/I18nProvider';
 import { TranslationKey } from '../../i18n/translations';
 import { API_BASE_URL } from '../../services/api';
+import { getCurrencySettings } from '../../services/mockApi';
 
 interface SalesInvoiceDetailProps {
     invoiceId: string;
@@ -19,6 +19,7 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
     const [invoice, setInvoice] = useState<SalesInvoice | null>(null);
     const [settings, setSettings] = useState<SalesInvoiceSettingsConfig | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const { downloadPdf, isProcessing } = usePdfGenerator({
         elementId: 'printable-invoice',
@@ -32,33 +33,85 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
         if (isExternalUrl(imagePath)) {
             return imagePath;
         }
-
-        // Sanitize the path: remove leading slashes or "uploads/" prefix
-        // This makes it robust whether the DB stores "header.png" or "uploads/header.png"
         const sanitizedPath = imagePath.replace(/^uploads\//, '').replace(/^\//, '');
-
         return `${API_BASE_URL}image_proxy.php?path=${encodeURIComponent(sanitizedPath)}`;
     };
 
     useEffect(() => {
-        const fetchInvoiceData = () => {
-            const invoiceData = getSalesInvoiceById(invoiceId);
-            const settingsData = getSalesInvoiceSettings();
-            
-            if (invoiceData) {
-                const translatedInvoice = {
-                    ...invoiceData,
-                    currency: {
-                        ...invoiceData.currency,
-                        symbol: t(invoiceData.currency.symbol as TranslationKey)
-                    }
+        const fetchInvoiceData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const [invoiceResponse, settingsResponse] = await Promise.all([
+                    fetch(`${API_BASE_URL}sales_invoices.php?id=${invoiceId}`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } }),
+                    fetch(`${API_BASE_URL}settings.php?scope=salesInvoice`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } })
+                ]);
+
+                if (!invoiceResponse.ok || !settingsResponse.ok) {
+                    throw new Error(t('salesInvoices.detail.notFound'));
+                }
+
+                const data = await invoiceResponse.json();
+                if (data.error) throw new Error(data.error);
+                
+                const currencySettingsData = getCurrencySettings();
+                const currencyInfo = currencySettingsData.currencies.find(c => c.code === data.currency_code);
+                const translatedSymbol = currencyInfo ? t(currencyInfo.symbol as TranslationKey) : data.currency_symbol;
+
+                const formattedInvoice: SalesInvoice = {
+                    id: String(data.id),
+                    customerId: data.customer_id,
+                    status: data.status,
+                    date: data.date,
+                    dueDate: data.due_date,
+                    createdAt: data.created_at,
+                    customer: { name: data.customer_name, address: data.customer_address, email: data.customer_email, phone: data.customer_phone } as ContactInfo,
+                    items: data.items.map((item: any): DocumentItem => ({
+                        id: item.id,
+                        productId: item.product_id,
+                        productName: item.product_name,
+                        description: item.description,
+                        quantity: parseFloat(item.quantity),
+                        unitPrice: parseFloat(item.unit_price),
+                        total: parseFloat(item.total),
+                        unit: item.unit || 'No'
+                    })),
+                    subtotal: parseFloat(data.subtotal),
+                    tax: { rate: parseFloat(data.tax_rate), amount: parseFloat(data.tax_amount) },
+                    discount: { type: data.discount_type, value: parseFloat(data.discount_value), amount: parseFloat(data.discount_amount) },
+                    total: parseFloat(data.total),
+                    currency: { code: data.currency_code, symbol: translatedSymbol },
+                    notes: data.notes,
+                    terms: data.terms,
                 };
-                setInvoice(translatedInvoice);
+                setInvoice(formattedInvoice);
+                
+                const settingsData = await settingsResponse.json();
+                const defaultFields: SalesInvoiceFieldConfig[] = [
+                    { key: 'customerInfo', label: 'settings.doc.field.invoiceTo', isEnabled: true },
+                    { key: 'invoiceNumber', label: 'settings.doc.field.invoiceNumber', isEnabled: true },
+                    { key: 'invoiceDate', label: 'settings.doc.field.invoiceDate', isEnabled: true },
+                    { key: 'dueDate', label: 'settings.doc.field.dueDate', isEnabled: true },
+                ];
+                
+                const finalFields = (settingsData.fields && Array.isArray(settingsData.fields) && settingsData.fields.length > 0) 
+                    ? settingsData.fields 
+                    : defaultFields;
+
+                setSettings({
+                    headerImage: settingsData.headerImage || null,
+                    footerImage: settingsData.footerImage || null,
+                    defaultTerms: settingsData.defaultTerms || '',
+                    fields: finalFields,
+                });
+
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : t('common.error');
+                setError(errorMessage);
+                console.error("Fetch Invoice Error:", err);
+            } finally {
+                setLoading(false);
             }
-             if (settingsData) {
-                setSettings(settingsData);
-            }
-            setLoading(false);
         };
         fetchInvoiceData();
     }, [invoiceId, t]);
@@ -74,17 +127,20 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
         };
 
         const visibleFields = settings.fields.filter(f => f.isEnabled);
+        
+        const textAlignmentClass = direction === 'rtl' ? 'text-right' : 'text-left';
+        const fieldAlignmentClass = direction === 'rtl' ? 'text-left' : 'text-right';
 
         return (
-            <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mt-8">
+            <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 mt-8">
                 {visibleFields.map(field => {
                     const value = dataMap[field.key];
                     if (!value) return null;
                     
                     return (
                         <div key={field.key} className="md:col-span-1 flex justify-between items-start border-b pb-2">
-                           <p className="font-semibold text-gray-600">{t(field.label as TranslationKey)}:</p>
-                           <p className="text-gray-800 font-medium text-left">{value}</p>
+                           <p className={`font-semibold text-gray-600 text-sm ${textAlignmentClass}`}>{t(field.label as TranslationKey)}:</p>
+                           <p className={`text-gray-800 font-medium text-sm ${fieldAlignmentClass}`}>{value}</p>
                         </div>
                     );
                 })}
@@ -96,9 +152,18 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
         return <div className="flex items-center justify-center h-screen"><p>{t('salesInvoices.detail.loading')}</p></div>;
     }
 
-    if (!invoice || !settings) {
-        return <div className="flex items-center justify-center h-screen"><p>{t('salesInvoices.detail.notFound')}</p></div>;
+    if (error || !invoice || !settings) {
+        return <div className="flex flex-col text-center items-center justify-center h-screen"><p className="font-bold text-red-600 text-lg mb-4">{t('salesInvoices.detail.notFound')}</p><p className="text-gray-600">{error}</p></div>;
     }
+    
+    const headerImageUrl = getImageUrl(settings.headerImage);
+    const footerImageUrl = getImageUrl(settings.footerImage);
+    const finalTerms = invoice.terms || (settings ? t(settings.defaultTerms as TranslationKey) : '');
+    const currencySymbol = invoice.currency.symbol;
+
+    const tableHeaderClass = direction === 'rtl' ? 'text-right' : 'text-left';
+    const tableCellClass = direction === 'rtl' ? 'text-right' : 'text-left';
+    const totalCellClass = direction === 'rtl' ? 'text-left' : 'text-right';
 
     return (
         <div className="bg-gray-100 min-h-screen">
@@ -106,7 +171,7 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                 <div className="container mx-auto flex justify-between items-center">
                     <div className="flex items-center gap-4">
                         <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                            <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700"/>
+                            <Icons.ArrowLeftIcon className={`w-6 h-6 text-gray-700 ${direction === 'rtl' ? 'transform scale-x-[-1]' : ''}`} />
                         </button>
                         <div>
                              <h1 className="text-lg sm:text-xl font-bold text-emerald-600">{t('salesInvoices.detail.title', { id: invoice.id })}</h1>
@@ -130,12 +195,12 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
             </header>
 
             <main className="p-4 sm:p-6 md:p-8">
-                 <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg">
-                    <div id="printable-invoice" className="p-8 sm:p-10 md:p-12" dir={direction}>
+                 <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg overflow-x-auto">
+                    <div id="printable-invoice" className="p-8 sm:p-10 md:p-12 bg-white min-w-[800px]" dir={direction}>
                         <div data-pdf-section="header" style={{ pageBreakInside: 'avoid' }}>
-                            {settings.headerImage && (
+                            {headerImageUrl && (
                                 <div className="mb-8">
-                                    <img src={getImageUrl(settings.headerImage) || ''} alt="Header" className="w-full h-auto object-contain" />
+                                    <img src={headerImageUrl} alt="Header" className="w-full h-auto object-contain" />
                                 </div>
                             )}
                         </div>
@@ -144,22 +209,26 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                             {renderDataFields()}
                         
                             <div className="mt-10 overflow-x-auto">
-                                <table className="w-full text-right">
+                                <table className={`w-full ${tableHeaderClass}`}>
                                     <thead className="bg-emerald-500 text-white">
                                         <tr>
-                                            <th className="p-3 font-semibold text-sm rounded-r-lg">{t('docCreate.item.description')}</th>
-                                            <th className="p-3 font-semibold text-sm text-center">{t('docCreate.item.quantity')}</th>
-                                            <th className="p-3 font-semibold text-sm text-center">{t('docCreate.item.unitPrice')}</th>
-                                            <th className="p-3 font-semibold text-sm text-left rounded-l-lg">{t('docCreate.item.total')}</th>
+                                            <th className="p-2 font-semibold text-xs text-center w-10">#</th>
+                                            <th className={`p-2 font-semibold text-xs ${tableHeaderClass}`}>{t('docCreate.item.name')}</th>
+                                            <th className={`p-2 font-semibold text-xs ${tableHeaderClass}`}>{t('docCreate.item.description')}</th>
+                                            <th className="p-2 font-semibold text-xs text-center">{t('docCreate.item.quantity')}</th>
+                                            <th className="p-2 font-semibold text-xs text-center">{t('docCreate.item.unitPrice')}</th>
+                                            <th className={`p-2 font-semibold text-xs ${totalCellClass}`}>{t('docCreate.item.total')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {invoice.items.map(item => (
-                                            <tr key={item.id} className="border-b" style={{ pageBreakInside: 'avoid' }}>
-                                                <td className="p-3">{item.description}</td>
-                                                <td className="p-3 text-center">{item.quantity}</td>
-                                                <td className="p-3 text-center">{formatCurrency(item.unitPrice, invoice.currency.symbol, false)}</td>
-                                                <td className="p-3 text-left">{formatCurrency(item.total, invoice.currency.symbol, false)}</td>
+                                        {invoice.items.map((item, index) => (
+                                            <tr key={item.id} className="border-b text-sm" style={{ pageBreakInside: 'avoid' }}>
+                                                <td className="p-2 text-center text-gray-600">{index + 1}</td>
+                                                <td className={`p-2 font-medium text-gray-800 ${tableCellClass}`}>{item.productName}</td>
+                                                <td className={`p-2 ${tableCellClass}`}>{item.description}</td>
+                                                <td className="p-2 text-center">{item.quantity}</td>
+                                                <td className="p-2 text-center">{formatCurrency(item.unitPrice, currencySymbol, false)}</td>
+                                                <td className={`p-2 ${totalCellClass}`}>{formatCurrency(item.total, currencySymbol, false)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -169,38 +238,38 @@ const SalesInvoiceDetail: React.FC<SalesInvoiceDetailProps> = ({ invoiceId, onBa
                         
                         <div data-pdf-section="footer">
                             <div className="mt-8 flex flex-col items-end" style={{ pageBreakInside: 'avoid' }}>
-                                <div className="w-full max-w-sm rounded-lg border border-emerald-200 bg-emerald-50 p-6 space-y-4">
-                                    <div className="flex justify-between text-gray-600">
+                                <div className="w-full max-w-sm rounded-lg border border-emerald-200 bg-emerald-50 p-4 space-y-2">
+                                    <div className="flex justify-between text-gray-600 text-sm">
                                         <p>{t('docCreate.subtotal')}</p>
-                                        <p className="font-medium text-gray-800">{formatCurrency(invoice.subtotal, invoice.currency.symbol, false)}</p>
+                                        <p className="font-medium text-gray-800">{formatCurrency(invoice.subtotal, currencySymbol, false)}</p>
                                     </div>
                                     {invoice.discount.amount > 0 && (
-                                        <div className="flex justify-between text-gray-600">
-                                            <p>{t('docCreate.discount')} ({invoice.discount.type === 'percentage' ? `${invoice.discount.value}%` : formatCurrency(invoice.discount.value, invoice.currency.symbol, false)})</p>
-                                            <p className="font-medium text-red-500">-{formatCurrency(invoice.discount.amount, invoice.currency.symbol, false)}</p>
+                                        <div className="flex justify-between text-gray-600 text-sm">
+                                            <p>{t('docCreate.discount')} ({invoice.discount.type === 'percentage' ? `${invoice.discount.value}%` : formatCurrency(invoice.discount.value, currencySymbol, false)})</p>
+                                            <p className="font-medium text-red-500">-{formatCurrency(invoice.discount.amount, currencySymbol, false)}</p>
                                         </div>
                                     )}
-                                    <div className="flex justify-between text-gray-600">
+                                    <div className="flex justify-between text-gray-600 text-sm">
                                         <p>{t('docCreate.tax')} ({invoice.tax.rate}%)</p>
-                                        <p className="font-medium text-gray-800">{formatCurrency(invoice.tax.amount, invoice.currency.symbol, false)}</p>
+                                        <p className="font-medium text-gray-800">{formatCurrency(invoice.tax.amount, currencySymbol, false)}</p>
                                     </div>
-                                    <div className="!mt-6 flex justify-between items-center bg-emerald-500 text-white font-bold text-lg p-3 rounded-md">
+                                    <div className="!mt-4 flex justify-between items-center bg-emerald-500 text-white font-bold text-base p-2 rounded-md">
                                         <p>{t('docCreate.grandTotal')}</p>
-                                        <p>{formatCurrency(invoice.total, invoice.currency.symbol, true)}</p>
+                                        <p>{formatCurrency(invoice.total, currencySymbol, true)}</p>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="mt-10 pt-8 border-t text-sm text-gray-600" style={{ pageBreakInside: 'avoid' }}>
-                                {settings.defaultTerms && (
+                                {finalTerms && (
                                     <div className="mb-8">
                                         <h3 className="font-semibold text-gray-800 mb-1">{t('common.termsAndConditions')}:</h3>
-                                        <p className="whitespace-pre-wrap">{t(settings.defaultTerms as TranslationKey)}</p>
+                                        <p className="whitespace-pre-wrap">{finalTerms}</p>
                                     </div>
                                 )}
-                                {settings.footerImage && (
+                                {footerImageUrl && (
                                     <div className="pt-8">
-                                        <img src={getImageUrl(settings.footerImage) || ''} alt="Footer" className="w-full h-auto object-contain" />
+                                        <img src={footerImageUrl} alt="Footer" className="w-full h-auto object-contain" />
                                     </div>
                                 )}
                             </div>

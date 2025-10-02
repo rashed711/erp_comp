@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { getReceiptById, getReceiptSettings } from '../../services/mockApi';
-import { Receipt, ReceiptSettingsConfig, ReceiptFieldConfig } from '../../types';
+import { Receipt, ReceiptSettingsConfig, ReceiptFieldConfig, ContactInfo } from '../../types';
 import * as Icons from '../icons/ModuleIcons';
 import { formatCurrency } from '../../utils/formatters';
 import { usePdfGenerator } from '../../hooks/usePdfGenerator';
 import { useI18n } from '../../i18n/I18nProvider';
 import { TranslationKey } from '../../i18n/translations';
 import { API_BASE_URL } from '../../services/api';
+import { getCurrencySettings } from '../../services/mockApi';
 
 interface ReceiptDetailProps {
     receiptId: string;
@@ -19,6 +19,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
     const [receipt, setReceipt] = useState<Receipt | null>(null);
     const [settings, setSettings] = useState<ReceiptSettingsConfig | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const { downloadPdf, isProcessing } = usePdfGenerator({
         elementId: 'printable-receipt',
@@ -32,30 +33,72 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
         if (isExternalUrl(imagePath)) {
             return imagePath;
         }
-
-        // Sanitize the path: remove leading slashes or "uploads/" prefix
-        // This makes it robust whether the DB stores "header.png" or "uploads/header.png"
         const sanitizedPath = imagePath.replace(/^uploads\//, '').replace(/^\//, '');
-
         return `${API_BASE_URL}image_proxy.php?path=${encodeURIComponent(sanitizedPath)}`;
     };
 
     useEffect(() => {
-        const fetchReceiptData = () => {
-            const receiptData = getReceiptById(receiptId);
-            const settingsData = getReceiptSettings();
-            if (receiptData) {
-                const translatedReceipt = {
-                    ...receiptData,
-                    currency: {
-                        ...receiptData.currency,
-                        symbol: t(receiptData.currency.symbol as TranslationKey)
-                    }
+        const fetchReceiptData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const [receiptResponse, settingsResponse] = await Promise.all([
+                    fetch(`${API_BASE_URL}receipts.php?id=${receiptId}`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } }),
+                    fetch(`${API_BASE_URL}settings.php?scope=receipt`, { cache: 'no-cache', headers: { 'Accept': 'application/json' } })
+                ]);
+    
+                if (!receiptResponse.ok || !settingsResponse.ok) {
+                    throw new Error(t('receipts.detail.notFound'));
+                }
+                
+                const data = await receiptResponse.json();
+                if (data.error) throw new Error(data.error);
+                
+                const currencySettingsData = getCurrencySettings();
+                const currencyInfo = currencySettingsData.currencies.find(c => c.code === data.currency_code);
+                const translatedSymbol = currencyInfo ? t(currencyInfo.symbol as TranslationKey) : data.currency_symbol;
+    
+                const formattedReceipt: Receipt = {
+                    id: String(data.id),
+                    status: data.status,
+                    date: data.date,
+                    createdAt: data.created_at,
+                    customer: { name: data.customer_name, address: data.customer_address, email: data.customer_email, phone: data.customer_phone } as ContactInfo,
+                    total: parseFloat(data.total),
+                    paymentMethod: data.payment_method,
+                    notes: data.notes,
+                    currency: { code: data.currency_code, symbol: translatedSymbol },
                 };
-                setReceipt(translatedReceipt);
+                setReceipt(formattedReceipt);
+                
+                const settingsData = await settingsResponse.json();
+                const defaultFields: ReceiptFieldConfig[] = [
+                    { key: 'customerInfo', label: 'settings.doc.field.receivedFrom', isEnabled: true },
+                    { key: 'receiptNumber', label: 'settings.doc.field.receiptNumber', isEnabled: true },
+                    { key: 'date', label: 'settings.doc.field.date', isEnabled: true },
+                    { key: 'paymentMethod', label: 'settings.doc.field.paymentMethod', isEnabled: true },
+                    { key: 'amount', label: 'settings.doc.field.amount', isEnabled: true },
+                    { key: 'notes', label: 'settings.doc.field.description', isEnabled: true },
+                ];
+    
+                const finalFields = (settingsData.fields && Array.isArray(settingsData.fields) && settingsData.fields.length > 0) 
+                    ? settingsData.fields 
+                    : defaultFields;
+    
+                setSettings({
+                    headerImage: settingsData.headerImage || null,
+                    footerImage: settingsData.footerImage || null,
+                    defaultNotes: settingsData.defaultNotes || '',
+                    fields: finalFields,
+                });
+                
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : t('common.error');
+                setError(errorMessage);
+                console.error("Fetch Receipt Error:", err);
+            } finally {
+                setLoading(false);
             }
-            if (settingsData) setSettings(settingsData);
-            setLoading(false);
         };
         fetchReceiptData();
     }, [receiptId, t]);
@@ -67,10 +110,14 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
     const renderDetailRow = (fieldKey: ReceiptFieldConfig['key'], value: React.ReactNode) => {
         const field = findField(fieldKey);
         if (!field) return null;
+        
+        const textAlignmentClass = direction === 'rtl' ? 'text-right' : 'text-left';
+        const fieldAlignmentClass = direction === 'rtl' ? 'text-left' : 'text-right';
+
         return (
             <div className="flex justify-between items-start border-b pb-3">
-                <p className="font-semibold text-gray-600">{t(field.label as TranslationKey)}:</p>
-                <div className="text-gray-800 font-medium max-w-xs text-left">{value}</div>
+                <p className={`font-semibold text-gray-600 ${textAlignmentClass}`}>{t(field.label as TranslationKey)}:</p>
+                <div className={`text-gray-800 font-medium max-w-xs ${fieldAlignmentClass}`}>{value}</div>
             </div>
         );
     };
@@ -79,9 +126,12 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
         return <div className="flex items-center justify-center h-screen"><p>{t('receipts.detail.loading')}</p></div>;
     }
 
-    if (!receipt || !settings) {
-        return <div className="flex items-center justify-center h-screen"><p>{t('receipts.detail.notFound')}</p></div>;
+    if (error || !receipt || !settings) {
+        return <div className="flex flex-col text-center items-center justify-center h-screen"><p className="font-bold text-red-600 text-lg mb-4">{t('receipts.detail.notFound')}</p><p className="text-gray-600">{error}</p></div>;
     }
+    
+    const headerImageUrl = getImageUrl(settings.headerImage);
+    const footerImageUrl = getImageUrl(settings.footerImage);
 
     return (
         <div className="bg-gray-100 min-h-screen">
@@ -89,7 +139,7 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
                 <div className="container mx-auto flex justify-between items-center">
                     <div className="flex items-center gap-4">
                         <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                            <Icons.ArrowLeftIcon className="w-6 h-6 text-gray-700" />
+                            <Icons.ArrowLeftIcon className={`w-6 h-6 text-gray-700 ${direction === 'rtl' ? 'transform scale-x-[-1]' : ''}`} />
                         </button>
                         <div>
                              <h1 className="text-lg sm:text-xl font-bold text-emerald-600">{t('receipts.detail.title', { id: receipt.id })}</h1>
@@ -113,12 +163,12 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
             </header>
 
             <main className="p-4 sm:p-6 md:p-8">
-                 <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg">
-                    <div id="printable-receipt" className="p-8 sm:p-10 md:p-12" dir={direction}>
+                 <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg overflow-x-auto">
+                    <div id="printable-receipt" className="p-8 sm:p-10 md:p-12 bg-white min-w-[800px]" dir={direction}>
                         <div data-pdf-section="header" style={{ pageBreakInside: 'avoid' }}>
-                            {settings.headerImage && (
+                            {headerImageUrl && (
                                 <div className="mb-8">
-                                    <img src={getImageUrl(settings.headerImage) || ''} alt="Header" className="w-full h-auto object-contain" />
+                                    <img src={headerImageUrl} alt="Header" className="w-full h-auto object-contain" />
                                 </div>
                             )}
                         </div>
@@ -126,26 +176,25 @@ const ReceiptDetail: React.FC<ReceiptDetailProps> = ({ receiptId, onBack }) => {
                         <div data-pdf-section="content" style={{ pageBreakInside: 'avoid' }}>
                             <div className="flex justify-between items-center mb-10">
                                 <h1 className="text-3xl font-bold text-emerald-600">{t('sidebar.receipts')}</h1>
-                                <div className="text-left">
-                                    {renderDetailRow('receiptNumber', <span className="font-mono">{receipt.id}</span>)}
-                                    <div className="mt-4"></div>
-                                    {renderDetailRow('date', receipt.date)}
+                                <div className={direction === 'rtl' ? 'text-left' : 'text-right'}>
+                                    {findField('receiptNumber') && <p>{t(findField('receiptNumber')?.label as TranslationKey)}: <span className="font-mono">{receipt.id}</span></p>}
+                                    {findField('date') && <p>{t(findField('date')?.label as TranslationKey)}: {receipt.date}</p>}
                                 </div>
                             </div>
 
                             <div className="space-y-6">
                                 {renderDetailRow('customerInfo', receipt.customer.name)}
                                 {renderDetailRow('amount', <span className="font-bold text-emerald-600">{formatCurrency(receipt.total, receipt.currency.symbol)}</span>)}
-                                {renderDetailRow('paymentMethod', receipt.paymentMethod)}
+                                {renderDetailRow('paymentMethod', t(receipt.paymentMethod as TranslationKey))}
                                 {renderDetailRow('notes', <p className="whitespace-pre-wrap">{receipt.notes || t(settings.defaultNotes as TranslationKey)}</p>)}
                             </div>
                         </div>
                         
                         <div data-pdf-section="footer" style={{ pageBreakInside: 'avoid' }}>
                             <div className="mt-16 pt-8 border-t text-sm text-gray-600">
-                                {settings.footerImage && (
+                                {footerImageUrl && (
                                     <div className="pt-8">
-                                        <img src={getImageUrl(settings.footerImage) || ''} alt="Footer" className="w-full h-auto object-contain" />
+                                        <img src={footerImageUrl} alt="Footer" className="w-full h-auto object-contain" />
                                     </div>
                                 )}
                             </div>
